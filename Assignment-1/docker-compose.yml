@@ -1,0 +1,25 @@
+version: '3.7'
+services:
+  udpingress:
+    build: ./ingress/
+    container_name: udp_ingress
+    network_mode: "host"
+
+  udpclient:
+    build: ./client/
+    network_mode: "host"
+    depends_on:
+      - "udpingress"
+      - "udpworker"
+    deploy:
+      mode: replicated
+      replicas: 10
+
+  udpworker:
+    build: ./worker/
+    network_mode: "host"
+    depends_on:
+      - "udpingress"
+    deploy:
+      mode: replicated
+      replicas: 30
