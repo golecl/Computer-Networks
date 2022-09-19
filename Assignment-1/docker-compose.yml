@@ -13,7 +13,7 @@ services:
       - "udpworker"
     deploy:
       mode: replicated
-      replicas: 10
+      replicas: 2
 
   udpworker:
     build: ./worker/
@@ -22,4 +22,10 @@ services:
       - "udpingress"
     deploy:
       mode: replicated
-      replicas: 30
+      replicas: 3
+
+  tcpdump:
+    image: kaazing/tcpdump
+    network_mode: "host"
+    volumes:
+      - ./tcpdump:/tcpdump

@@ -12,35 +12,34 @@ messageCodes = ["r3qu35t-cl13nt","c0nf1rmat10n-cl13nt", "r3qu35t-w0rk3r",
 # code "w0rk3r" = worker
 # code "1ngr355" = ingress
 
-# each message will contain a 36 bit binary number. the first 4 bits will correspond to the codes above,
-# used to identify what type of action should be taken
-# the next 16 bits will correspond to the client assigned to the action
-# the last 16 bits will be used to identified to the worker tied to the action
-# as to reserve the ability to have no worker and/or no client assigned
-# the bits "0000000000000000" will be assigned to an empty worker/client
-# this means that the binary number is +1 whatever index the worker or client is
+# each datagram will contain 7 bytes in the beggining describing all of the useful information
+# this information will change but currently it is action code, client number, part number, and total number of parts
 
 # POSSIBLE FEATURE IF I HAVE TIME:
 # the udp packet size limit is 65507 bytes. this can be worked around by splitting a file up into multiple
-# parts on the client side and then including a couple bits in the binary message at the start which would
+# parts on the client side and then including a couple Bytes in the Byte message at the start which would
 # indicate how many parts of the file there are and which part of the file is included in the datagram.
-# this would take extra methods on the ingress and client side along with a change to the binary code
+# this would take extra methods on the ingress and client side along with a change to the Byte code
 # system in all classes. it would probably not be too difficult but it is also not necessary
 
 #TODO
-# change all messages into just containing the binary header and the file we need to transfer
-# change the "createBinaryCode" function so that it doesnt add "[]" and change the other functions approrpriately
+# CHANGE MESSAGE ENCODING AND DECODING SO IT NEVER DECODES (OR ONLY DECODES IF U WANT STRINGS)
+# change all messages into just containing the Byte header and the file we need to transfer
+# change the "createByteCode" function so that it doesnt add "[]" and change the other functions approrpriately
 # possibly implement the method described above
 
 localIP = "127.0.0.1"
 localPort = 49668
 bufferSize = 1024
-clientAddresses = []
+clientAddresses = ['0']
 workerAddresses = []
 currentClient = -1
 currentWorker = -1
-clientWorkerBits = 16
-codeBits = 4
+codeBytes = 1
+clientBytes = 2
+partNumBytes = 2
+totPartsBytes = 2
+totalHeaderBytes = codeBytes + clientBytes + partNumBytes + totPartsBytes
 
 # function used to find worker addresses or add them if they do not exist on the list yet
 def findIfUnitAlreadyDeclared(list, address):
@@ -53,45 +52,72 @@ def findIfUnitAlreadyDeclared(list, address):
         list.append(address)
         return list.index(address)
 
-# creates the binary code used to identify the action, client, and worker
-# returns it in [] and with client and worker numbers incremented by 1
-def createBinaryCode(messageCode, client, worker):
-    msgCodeBin = f'{messageCode:0{codeBits}b}' # creates a 4 bit binary number of the message code
-    client+=1
-    clientBin = f'{client:0{clientWorkerBits}b}' # creates a 16 bit binary number of the client number
-    worker+=1
-    workerBin = f'{worker:0{clientWorkerBits}b}'# creates a 16 bit binary number of the client number
-    binaryCode = "[" + msgCodeBin + clientBin + workerBin + "]"
-    return binaryCode
+# creates the Byte code used to identify the action, client, current file part, and total file parts
+def createByteCode(messageCode, client, partNumber, totalParts):
+    msgCodeByte = messageCode.to_bytes(codeBytes, 'big') # creates a 8 bit Byte number of the message code
+    clientByte = client.to_bytes(clientBytes, 'big') # creates a 16 bit Byte number of the client number
+    partNum = partNumber.to_bytes(partNumBytes, 'big') # creates a byte sized number
+    partTot = totalParts.to_bytes(totPartsBytes, 'big')
+    ByteCode = msgCodeByte + clientByte + partNum + partTot
+    return ByteCode
 
-# gets the binary code from a string message
-# CURRENTLY SET UP TO WORK WITH THE SYSTEM OF THE [] ENCASING THE BINARY CODE
-# IF THIS SYSTEM CHANGES YOU HAVE TO CHANGE THE CODE OF THIS FUNCTION AND COPY AND PASTE IT TO THE WORKER AND CLIENT
-def getBinaryCodeFromMessage(message):
-    # ONCE THE BINARY CODE IS THE ONLY THING IN THE MESSAGE THEN REPLACE THE LINE WITH
-    # binaryCode = message[len(message) - (codeBits + 2*clientWorkerBits): len(message) - 1]
-    binaryCode = message[len(message) - (codeBits + 2*clientWorkerBits + 1): len(message) - 1]
-    return binaryCode
+# gets the Byte code from a string message
+# NEEDS TO BE PASSED IN ENCODED AS BYTES OTHERWISE WILL NOT WORK
+def getByteCodeFromMessage(message):
+    ByteCode = message[0:totalHeaderBytes]
+    return ByteCode
 
-# returns a list of the code, client, and worker contained in a binary string
-def findCodeClientWorker(binaryString):
-    msgCode = int(binaryString[0:codeBits], 2) # gets the message code from the string
-    clientNum = int(binaryString[codeBits:codeBits + clientWorkerBits], 2) - 1 # gets the client number from the string
-    workerNum = int(binaryString[codeBits + clientWorkerBits:codeBits + clientWorkerBits + clientWorkerBits], 2) - 1 # gets the worker number from the string
-    values = [msgCode, clientNum, workerNum]
-    return values
+# FOR ALL "find" FUNCTIONS BELOW:
+    # ONLY PASS IN THE FIRST FEW BYTES OF A MESSAGE BECAUSE OTHERWISE IT MIGHT BE SLOE
 
-# gets the message code from a binary string
-def findCode(binaryString):
-    return findCodeClientWorker(binaryString)[0]
+# gets the message code from a Byte string in form of int
+def findCode(message):
+    # if the header has not been detached from the rest of the data (slow)
+    if len(message) > totalHeaderBytes:
+        message = getByteCodeFromMessage(message)
+    #if the header only has been passed in
+    start = 0
+    end = start + codeBytes
+    return int.from_bytes(message[start:end], 'big')
 
-# gets the client number from a binary string
-def findClient(binaryString):
-    return findCodeClientWorker(binaryString)[1]
 
-# gets the worker number from a binary string
-def findWorker(binaryString):
-    return findCodeClientWorker(binaryString)[2]
+# gets the client number from a Byte string in form of int
+def findClient(message):
+    # if the header has not been detached from the rest of the data (slow)
+    if len(message) > totalHeaderBytes:
+        message = getByteCodeFromMessage(message)
+    #if the header only has been passed in
+    start = codeBytes
+    end = start + clientBytes
+    return int.from_bytes(message[start:end], 'big')
+
+# gets the part number from a Byte string in form of int
+def findPartNum(message):
+    # if the header has not been detached from the rest of the data (slow)
+    if len(message) > totalHeaderBytes:
+        message = getByteCodeFromMessage(message)
+    #if the header only has been passed in
+    start = codeBytes + clientBytes
+    end = start + partNumBytes
+    return int.from_bytes(message[start:end], 'big')
+
+# gets the total number of parts from a Byte string in form of int
+def findTotalPartNum(message):
+    # if the header has not been detached from the rest of the data (slow)
+    if len(message) > totalHeaderBytes:
+        message = getByteCodeFromMessage(message)
+    #if the header only has been passed in
+    start = codeBytes + clientBytes + partNumBytes
+    end = start + totPartsBytes
+    return int.from_bytes(message[start:end], 'big')
+
+def getStringCodeFromByteCode(byteCode):
+    code = findCode(byteCode)
+    client = findClient(byteCode)
+    partNum = findPartNum(byteCode)
+    totPartNum = findTotalPartNum(byteCode)
+    string = f'{code:0{codeBytes*8}}' + f'{client:0{clientBytes*8}}' + f'{partNum:0{partNumBytes*8}}' + f'{totPartNum:0{totPartsBytes*8}}'
+    return string
 
 # create a datagram socket
 UDPIngressSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
@@ -107,25 +133,29 @@ while True:
     message = bytesAddressPair[0]
     address = bytesAddressPair[1]
 
-    stringMessage = message.decode();
-    binaryCode = getBinaryCodeFromMessage(stringMessage)
-    receivedMessageCode = findCode(binaryCode)
+    byteCode = getByteCodeFromMessage(message)
+
+    receivedMessageCode = findCode(byteCode)
+    receivedPartNum = findPartNum(byteCode)
+    receivedTotalPartNum = findTotalPartNum(byteCode)
 
     # if a worker sends a delcaration of existence
     if receivedMessageCode == 7:
         # gets the index of the current workers address
         currentWorker = findIfUnitAlreadyDeclared(workerAddresses, address)
-        confirmation = "Yes, worker I see you! [Code: {}] {}".format(messageCodes[5], createBinaryCode(5, -1, currentWorker))
+        byteCodeToSend = createByteCode(5, 0, 0, 0)
+        confirmation = "{} Yes, worker I see you! [Code: {}]".format(getStringCodeFromByteCode(byteCodeToSend), messageCodes[5])
         print(confirmation)
-        bytesToSend = str.encode(confirmation)
+        bytesToSend = byteCodeToSend + str.encode(confirmation)
         UDPIngressSocket.sendto(bytesToSend, workerAddresses[currentWorker])
 
     # if a client sends a delcaration of existence
     if receivedMessageCode == 6:
         currentClient = findIfUnitAlreadyDeclared(clientAddresses, address)
-        confirmation = "Yes, client I see you! [Code: {}] {}".format(messageCodes[5], createBinaryCode(5, currentClient, -1))
+        byteCodeToSend = createByteCode(5, currentClient, 0, 0)
+        confirmation = "{} Yes, client I see you! [Code: {}".format(getStringCodeFromByteCode(byteCodeToSend), messageCodes[5])
         print(confirmation)
-        bytesToSend = str.encode(confirmation)
+        bytesToSend = byteCodeToSend + str.encode(confirmation)
         UDPIngressSocket.sendto(bytesToSend, clientAddresses[currentClient])
 
     # if a client sends a request
@@ -135,16 +165,19 @@ while True:
         # if workers have declared themselves, the ingress will choose a random one and send on the clients request to them
         if len(workerAddresses) != 0:
             currentWorker = randrange(len(workerAddresses))
-            requestToWorker = "Hi hello i received a request from client, passing it on, okay bye [Code: {}] {}".format(messageCodes[4], createBinaryCode(4, currentClient, currentWorker))
+            # CURRENTLY HARD CODED 1 IN THE PARTNUM PARAMETER BECAUSE I HAVENT IMPLEMENTED SPLITTING PARTS YET, WILL GET CHANGED LATER
+            requestedPartNum = 1
+            byteCodeToSend = createByteCode(4, currentClient, requestedPartNum, receivedTotalPartNum)
+            requestToWorker = "{} Hi hello i received a request from client, passing it on, okay bye [Code: {}]".format(getStringCodeFromByteCode(byteCodeToSend), messageCodes[4])
             print(requestToWorker)
-            bytesToSend = str.encode(requestToWorker)
+            bytesToSend = byteCodeToSend + str.encode(requestToWorker)
             UDPIngressSocket.sendto(bytesToSend, workerAddresses[currentWorker])
 
     # if a worker sends confirmation
     if receivedMessageCode == 3:
-        currentClient = findClient(binaryCode)
-        currentWorker = findWorker(binaryCode)
-        stringMessage = "WORKER RECEIVEDDDDDDDDDD gut job :3 [Code: {}] {}".format(messageCodes[5], createBinaryCode(5, currentClient, currentWorker))
+        currentClient = findClient(byteCode)
+        byteCodeToSend = createByteCode(5, currentClient, receivedPartNum, receivedTotalPartNum)
+        stringMessage = "{} WORKER RECEIVEDDDDDDDDDD gut job :3 [Code: {}]".format(getStringCodeFromByteCode(byteCodeToSend), messageCodes[5])
         print(stringMessage)
-        bytesToSend = str.encode(stringMessage)
+        bytesToSend =  byteCodeToSend + str.encode(stringMessage)
         UDPIngressSocket.sendto(bytesToSend, clientAddresses[currentClient])

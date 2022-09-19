@@ -9,50 +9,83 @@ messageCodes = ["r3qu35t-cl13nt","c0nf1rmat10n-cl13nt", "r3qu35t-w0rk3r",
 # code "w0rk3r" = worker
 # code "1ngr355" = ingress
 
-clientWorkerBits = 16
-codeBits = 4
+codeBytes = 1
+clientBytes = 2
+partNumBytes = 2
+totPartsBytes = 2
+totalHeaderBytes = codeBytes + clientBytes + partNumBytes + totPartsBytes
 
-# creates the binary code used to identify the action, client, and worker
-# returns it in [] and with client and worker numbers incremented by 1
-def createBinaryCode(messageCode, client, worker):
-    msgCodeBin = f'{messageCode:0{codeBits}b}' # creates a 4 bit binary number of the message code
-    client+=1
-    clientBin = f'{client:0{clientWorkerBits}b}' # creates a 16 bit binary number of the client number
-    worker+=1
-    workerBin = f'{worker:0{clientWorkerBits}b}'# creates a 16 bit binary number of the client number
-    binaryCode = "[" + msgCodeBin + clientBin + workerBin + "]"
-    return binaryCode
+# creates the Byte code used to identify the action, client, current file part, and total file parts
+def createByteCode(messageCode, client, partNumber, totalParts):
+    msgCodeByte = messageCode.to_bytes(codeBytes, 'big') # creates a 8 bit Byte number of the message code
+    clientByte = client.to_bytes(clientBytes, 'big') # creates a 16 bit Byte number of the client number
+    partNum = partNumber.to_bytes(partNumBytes, 'big') # creates a byte sized number
+    partTot = totalParts.to_bytes(totPartsBytes, 'big')
+    ByteCode = msgCodeByte + clientByte + partNum + partTot
+    return ByteCode
 
-# gets the binary code from a string message
-def getBinaryCodeFromMessage(message):
-    binaryCode = message[len(message) - (codeBits + 2*clientWorkerBits + 1): len(message) - 1]
-    return binaryCode
+# gets the Byte code from a string message
+# NEEDS TO BE PASSED IN ENCODED AS BYTES OTHERWISE WILL NOT WORK
+def getByteCodeFromMessage(message):
+    ByteCode = message[0:totalHeaderBytes]
+    return ByteCode
 
-# returns a list of the code, client, and worker contained in a binary string
-def findCodeClientWorker(binaryString):
-    msgCode = int(binaryString[0:codeBits], 2) # gets the message code from the string
-    clientNum = int(binaryString[codeBits:codeBits + clientWorkerBits], 2) - 1 # gets the client number from the string
-    workerNum = int(binaryString[codeBits + clientWorkerBits:codeBits + clientWorkerBits + clientWorkerBits], 2) - 1 # gets the worker number from the string
-    values = [msgCode, clientNum, workerNum]
-    return values
+# FOR ALL "find" FUNCTIONS BELOW:
+    # ONLY PASS IN THE FIRST FEW BYTES OF A MESSAGE BECAUSE OTHERWISE IT MIGHT BE SLOE
 
-# gets the message code from a binary string
-def findCode(binaryString):
-    return findCodeClientWorker(binaryString)[0]
+# gets the message code from a Byte string in form of int
+def findCode(message):
+    # if the header has not been detached from the rest of the data (slow)
+    if len(message) > totalHeaderBytes:
+        message = getByteCodeFromMessage(message)
+    #if the header only has been passed in
+    start = 0
+    end = start + codeBytes
+    return int.from_bytes(message[start:end], 'big')
 
-# gets the client number from a binary string
-def findClient(binaryString):
-    return findCodeClientWorker(binaryString)[1]
 
-# gets the worker number from a binary string
-def findWorker(binaryString):
-    return findCodeClientWorker(binaryString)[2]
+# gets the client number from a Byte string in form of int
+def findClient(message):
+    # if the header has not been detached from the rest of the data (slow)
+    if len(message) > totalHeaderBytes:
+        message = getByteCodeFromMessage(message)
+    #if the header only has been passed in
+    start = codeBytes
+    end = start + clientBytes
+    return int.from_bytes(message[start:end], 'big')
+
+# gets the part number from a Byte string in form of int
+def findPartNum(message):
+    # if the header has not been detached from the rest of the data (slow)
+    if len(message) > totalHeaderBytes:
+        message = getByteCodeFromMessage(message)
+    #if the header only has been passed in
+    start = codeBytes + clientBytes
+    end = start + partNumBytes
+    return int.from_bytes(message[start:end], 'big')
+
+# gets the total number of parts from a Byte string in form of int
+def findTotalPartNum(message):
+    # if the header has not been detached from the rest of the data (slow)
+    if len(message) > totalHeaderBytes:
+        message = getByteCodeFromMessage(message)
+    #if the header only has been passed in
+    start = codeBytes + clientBytes + partNumBytes
+    end = start + totPartsBytes
+    return int.from_bytes(message[start:end], 'big')
+
+def getStringCodeFromByteCode(byteCode):
+    code = findCode(byteCode)
+    client = findClient(byteCode)
+    partNum = findPartNum(byteCode)
+    totPartNum = findTotalPartNum(byteCode)
+    string = f'{code:0{codeBytes*8}}' + f'{client:0{clientBytes*8}}' + f'{partNum:0{partNumBytes*8}}' + f'{totPartNum:0{totPartsBytes*8}}'
+    return string
 
 # no assigned client number yet
-assignedClientNumber = -1
+assignedClientNumber = 0
 # declaration message so that ingress knows who its clients are, it is not necessary but was nice for debugging
 # might delete later
-declarationFromClient = "Hello UDP Ingress this is Client! [Code: {}] {}".format(messageCodes[6], createBinaryCode(6, -1, -1))
 declared = False
 # empty IP number as it will find its own ip which is assigned by docker
 IngressAddressPort = ("", 49668)
@@ -61,50 +94,38 @@ bufferSize = 1024
 # create a UDP socket at client side
 UDPClientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
 
-# encodes message into bytes instead of a regular string
-bytesToSend = str.encode(declarationFromClient)
-UDPClientSocket.sendto(bytesToSend, IngressAddressPort)
-
-# send to Ingress using created UDP socket
-if declared == False:
-    bytesReceivedFromIngress = UDPClientSocket.recvfrom(bufferSize)
-    bytesMessageFromIngress = bytesReceivedFromIngress[0]
-    stringMessage = bytesMessageFromIngress.decode()
-    assignedClientNumber = findClient(getBinaryCodeFromMessage(stringMessage))
-    print("just declared ;) [Code: {}] {}".format(messageCodes[6], createBinaryCode(6, assignedClientNumber, -1)))
-    declared = True
-    # if declaration complete, can now send requests to ingress
-
 numberOfRequests = 0
 # send initial request to Ingress using created UDP socket
 # POSSIBLE BUG: has to be done at least once before the while loop? i assume it is because it keeps listening for a message from Ingress
-# says the request number and then a human readable code, then the binary code
-requestFromClient = "We have done this {} times! Please tell worker I said hi [Code: {}] {}".format(numberOfRequests, messageCodes[0], createBinaryCode(0, assignedClientNumber, -1))
+# says the request number and then a human readable code, then the Byte code
+byteCodeToSend = createByteCode(0, assignedClientNumber, 0, 0)
+requestFromClient = "{} We have done this {} times! Please tell worker I said hi [Code: {}]".format(getStringCodeFromByteCode(byteCodeToSend), numberOfRequests, messageCodes[0])
 print(requestFromClient)
-bytesToSend = str.encode(requestFromClient)
+bytesToSend = byteCodeToSend + str.encode(requestFromClient)
 UDPClientSocket.sendto(bytesToSend, IngressAddressPort)
 numberOfRequests+=1
 
 # seeks out reply from ingress
 while True:
-    bytesAddressPair = UDPClientSocket.recvfrom(bufferSize)
-    msgFromIngress = bytesAddressPair[0]
-    # message is received in bytes so it has to be decoded
-    stringMessage = msgFromIngress.decode()
-    # finds the action code in the binary code
-    receivedMessageCode = findCode(getBinaryCodeFromMessage(stringMessage))
+    bytesReceivedFromIngress = UDPClientSocket.recvfrom(bufferSize)
+    bytesMessageFromIngress = bytesReceivedFromIngress[0]
+    byteCode = getByteCodeFromMessage(bytesMessageFromIngress)
+
+    receivedMessageCode = findCode(byteCode)
+    receivedPartNum = findPartNum(byteCode)
+    receivedTotalPartNum = findTotalPartNum(byteCode)
 
     # if confirmation from ingress is received
     if receivedMessageCode == 5:
-        # it will find which worker completed its request which isnt exactly necessary but it is useful for debugging
-        worker = findWorker(getBinaryCodeFromMessage(stringMessage))
-        msgWhenReceived = "Oh mein got!!!! I received zat message so gut!!!!!!!! [Code: {}] {}".format(messageCodes[1], createBinaryCode(1, assignedClientNumber, worker))
+        byteCodeToSend = createByteCode(5, assignedClientNumber, receivedPartNum, receivedTotalPartNum)
+        msgWhenReceived = "{} Oh mein got!!!! I received zat message so gut!!!!!!!! [Code: {}]".format(getStringCodeFromByteCode(byteCodeToSend), messageCodes[1])
         print(msgWhenReceived)
 
     # send request to Ingress using created UDP socket 3 times
     if numberOfRequests < 3:
-        requestFromClient = "We have done this {} times! Please tell worker I said hi [Code: {}] {}".format(numberOfRequests, messageCodes[0], createBinaryCode(0, assignedClientNumber, -1))
+        byteCodeToSend = createByteCode(0, assignedClientNumber, 0, 0)
+        requestFromClient = "{} We have done this {} times! Please tell worker I said hi [Code: {}]".format(getStringCodeFromByteCode(byteCodeToSend), numberOfRequests, messageCodes[0])
         print(requestFromClient)
-        bytesToSend = str.encode(requestFromClient)
+        bytesToSend = byteCodeToSend + str.encode(requestFromClient)
         UDPClientSocket.sendto(bytesToSend, IngressAddressPort)
         numberOfRequests+=1
