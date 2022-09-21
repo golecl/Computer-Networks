@@ -30,16 +30,18 @@ messageCodes = ["r3qu35t-cl13nt","c0nf1rmat10n-cl13nt", "r3qu35t-w0rk3r",
 
 localIP = "127.0.0.1"
 localPort = 49668
-bufferSize = 1024
+bufferSize = 20000
 clientAddresses = ['0']
 workerAddresses = []
+unavailableWorkers = []
 currentClient = -1
 currentWorker = -1
 codeBytes = 1
 clientBytes = 2
 partNumBytes = 2
-totPartsBytes = 2
-totalHeaderBytes = codeBytes + clientBytes + partNumBytes + totPartsBytes
+fileNameBytes = 2
+lastFileBytes = 1
+totalHeaderBytes = codeBytes + clientBytes + partNumBytes + fileNameBytes + lastFileBytes
 
 # function used to find worker addresses or add them if they do not exist on the list yet
 def findIfUnitAlreadyDeclared(list, address):
@@ -53,12 +55,13 @@ def findIfUnitAlreadyDeclared(list, address):
         return list.index(address)
 
 # creates the Byte code used to identify the action, client, current file part, and total file parts
-def createByteCode(messageCode, client, partNumber, totalParts):
+def createByteCode(messageCode, client, partNumber, fileNames, lastFile):
     msgCodeByte = messageCode.to_bytes(codeBytes, 'big') # creates a 8 bit Byte number of the message code
     clientByte = client.to_bytes(clientBytes, 'big') # creates a 16 bit Byte number of the client number
     partNum = partNumber.to_bytes(partNumBytes, 'big') # creates a byte sized number
-    partTot = totalParts.to_bytes(totPartsBytes, 'big')
-    ByteCode = msgCodeByte + clientByte + partNum + partTot
+    fileNameNum = fileNames.to_bytes(fileNameBytes, 'big')
+    lastFile = lastFile.to_bytes(lastFileBytes, 'big')
+    ByteCode = msgCodeByte + clientByte + partNum + fileNameNum + lastFile
     return ByteCode
 
 # gets the Byte code from a string message
@@ -102,22 +105,43 @@ def findPartNum(message):
     return int.from_bytes(message[start:end], 'big')
 
 # gets the total number of parts from a Byte string in form of int
-def findTotalPartNum(message):
+def findfileNameNum(message):
     # if the header has not been detached from the rest of the data (slow)
     if len(message) > totalHeaderBytes:
         message = getByteCodeFromMessage(message)
     #if the header only has been passed in
     start = codeBytes + clientBytes + partNumBytes
-    end = start + totPartsBytes
+    end = start + fileNameBytes
+    return int.from_bytes(message[start:end], 'big')
+
+# gets last file confirmation byte
+def findLastFile(message):
+    # if the header has not been detached from the rest of the data (slow)
+    if len(message) > totalHeaderBytes:
+        message = getByteCodeFromMessage(message)
+    #if the header only has been passed in
+    start = codeBytes + clientBytes + partNumBytes + fileNameBytes
+    end = start + lastFileBytes
     return int.from_bytes(message[start:end], 'big')
 
 def getStringCodeFromByteCode(byteCode):
     code = findCode(byteCode)
     client = findClient(byteCode)
     partNum = findPartNum(byteCode)
-    totPartNum = findTotalPartNum(byteCode)
-    string = f'{code:0{codeBytes*8}}' + f'{client:0{clientBytes*8}}' + f'{partNum:0{partNumBytes*8}}' + f'{totPartNum:0{totPartsBytes*8}}'
+    fileNameNum = findfileNameNum(byteCode)
+    lastFile = findLastFile(byteCode)
+    string = f'{code:0{codeBytes*8}}' + f'{client:0{clientBytes*8}}' + f'{partNum:0{partNumBytes*8}}' + f'{fileNameNum:0{fileNameBytes*8}}' + f'{lastFile:0{lastFileBytes*8}}'
     return string
+
+def selectAvailableWorker():
+    currentWorker = workerAddresses.pop(randrange(len(workerAddresses)))
+    unavailableWorkers.append(currentWorker)
+    return currentWorker
+
+def makeWorkerAvailabe(address):
+    currentWorker = unavailableWorkers.pop(findIfUnitAlreadyDeclared(unavailableWorkers, address))
+    findIfUnitAlreadyDeclared(workerAddresses, currentWorker)
+
 
 # create a datagram socket
 UDPIngressSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
@@ -137,26 +161,18 @@ while True:
 
     receivedMessageCode = findCode(byteCode)
     receivedPartNum = findPartNum(byteCode)
-    receivedTotalPartNum = findTotalPartNum(byteCode)
+    receivedfileNameNum = findfileNameNum(byteCode)
+    receivedLastFile = findLastFile(byteCode)
 
     # if a worker sends a delcaration of existence
     if receivedMessageCode == 7:
         # gets the index of the current workers address
         currentWorker = findIfUnitAlreadyDeclared(workerAddresses, address)
-        byteCodeToSend = createByteCode(5, 0, 0, 0)
-        confirmation = "{} Yes, worker I see you! [Code: {}]".format(getStringCodeFromByteCode(byteCodeToSend), messageCodes[5])
+        byteCodeToSend = createByteCode(5, 0, 0, 0, 1)
+        confirmation = "Declared worker {}".format(currentWorker)
         print(confirmation)
-        bytesToSend = byteCodeToSend + str.encode(confirmation)
+        bytesToSend = byteCodeToSend
         UDPIngressSocket.sendto(bytesToSend, workerAddresses[currentWorker])
-
-    # if a client sends a delcaration of existence
-    if receivedMessageCode == 6:
-        currentClient = findIfUnitAlreadyDeclared(clientAddresses, address)
-        byteCodeToSend = createByteCode(5, currentClient, 0, 0)
-        confirmation = "{} Yes, client I see you! [Code: {}".format(getStringCodeFromByteCode(byteCodeToSend), messageCodes[5])
-        print(confirmation)
-        bytesToSend = byteCodeToSend + str.encode(confirmation)
-        UDPIngressSocket.sendto(bytesToSend, clientAddresses[currentClient])
 
     # if a client sends a request
     if receivedMessageCode == 0:
@@ -164,20 +180,19 @@ while True:
         currentClient = findIfUnitAlreadyDeclared(clientAddresses, address)
         # if workers have declared themselves, the ingress will choose a random one and send on the clients request to them
         if len(workerAddresses) != 0:
-            currentWorker = randrange(len(workerAddresses))
-            # CURRENTLY HARD CODED 1 IN THE PARTNUM PARAMETER BECAUSE I HAVENT IMPLEMENTED SPLITTING PARTS YET, WILL GET CHANGED LATER
-            requestedPartNum = 1
-            byteCodeToSend = createByteCode(4, currentClient, requestedPartNum, receivedTotalPartNum)
-            requestToWorker = "{} Hi hello i received a request from client, passing it on, okay bye [Code: {}]".format(getStringCodeFromByteCode(byteCodeToSend), messageCodes[4])
-            print(requestToWorker)
-            bytesToSend = byteCodeToSend + str.encode(requestToWorker)
-            UDPIngressSocket.sendto(bytesToSend, workerAddresses[currentWorker])
+            currentWorker = selectAvailableWorker()
+            byteCodeToSend = createByteCode(4, currentClient, 0, receivedfileNameNum, 1)
+            print("Received a request from client for a file")
+            bytesToSend = byteCodeToSend
+            UDPIngressSocket.sendto(bytesToSend, currentWorker)
 
     # if a worker sends confirmation
     if receivedMessageCode == 3:
         currentClient = findClient(byteCode)
-        byteCodeToSend = createByteCode(5, currentClient, receivedPartNum, receivedTotalPartNum)
-        stringMessage = "{} WORKER RECEIVEDDDDDDDDDD gut job :3 [Code: {}]".format(getStringCodeFromByteCode(byteCodeToSend), messageCodes[5])
-        print(stringMessage)
-        bytesToSend =  byteCodeToSend + str.encode(stringMessage)
+        byteCodeToSend = createByteCode(5, currentClient, receivedPartNum, receivedfileNameNum, receivedLastFile)
+        bytesToSend = message
         UDPIngressSocket.sendto(bytesToSend, clientAddresses[currentClient])
+        # POSSIBLE BUG: COULD RECEIVE LAST FILE BEFORE ALL FILES ARE RECEIVED LOL
+        if receivedLastFile == 1:
+            makeWorkerAvailabe(address)
+            print("Forwarded file to client")

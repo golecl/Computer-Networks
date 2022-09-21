@@ -2,6 +2,10 @@
 FROM python:latest
 
 ADD worker.py /worker/
+ADD test1.txt /worker/
+ADD test2.txt /worker/
+ADD test3.txt /worker/
+ADD test4.txt /worker/
 
 WORKDIR /worker/
 

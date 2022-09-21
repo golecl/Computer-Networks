@@ -1,4 +1,5 @@
 import socket
+from random import randrange
 messageCodes = ["r3qu35t-cl13nt","c0nf1rmat10n-cl13nt", "r3qu35t-w0rk3r",
                 "c0nf1rmat10n-w0rk3r", "r3qu35t-1ngr355", "c0nf1rmat10n-1ngre55",
                  "d3clarat10n-cl13nt", "d3clarat10n-w0rk3r"]
@@ -9,19 +10,36 @@ messageCodes = ["r3qu35t-cl13nt","c0nf1rmat10n-cl13nt", "r3qu35t-w0rk3r",
 # code "w0rk3r" = worker
 # code "1ngr355" = ingress
 
+availableFiles = ["test1.txt", "test2.txt", "test3.txt", "test4.txt"]
+
+# TODO: IMPLEMENT SORTING ALGORITHM FOR THE FILE PARTITIONS
+
 codeBytes = 1
 clientBytes = 2
 partNumBytes = 2
-totPartsBytes = 2
-totalHeaderBytes = codeBytes + clientBytes + partNumBytes + totPartsBytes
+fileNameBytes = 2
+lastFileBytes = 1
+totalHeaderBytes = codeBytes + clientBytes + partNumBytes + fileNameBytes + lastFileBytes
+
+# function used to find worker addresses or add them if they do not exist on the list yet
+def findIfUnitAlreadyDeclared(list, address):
+    # if the unit is already in the list, it returns its index
+    try:
+        index = list.index(address)
+        return index
+    # if it is not already on the list it adds it to the end and returns its index
+    except:
+        list.append(address)
+        return list.index(address)
 
 # creates the Byte code used to identify the action, client, current file part, and total file parts
-def createByteCode(messageCode, client, partNumber, totalParts):
+def createByteCode(messageCode, client, partNumber, fileNames, lastFile):
     msgCodeByte = messageCode.to_bytes(codeBytes, 'big') # creates a 8 bit Byte number of the message code
     clientByte = client.to_bytes(clientBytes, 'big') # creates a 16 bit Byte number of the client number
     partNum = partNumber.to_bytes(partNumBytes, 'big') # creates a byte sized number
-    partTot = totalParts.to_bytes(totPartsBytes, 'big')
-    ByteCode = msgCodeByte + clientByte + partNum + partTot
+    fileNameNum = fileNames.to_bytes(fileNameBytes, 'big')
+    lastFile = lastFile.to_bytes(lastFileBytes, 'big')
+    ByteCode = msgCodeByte + clientByte + partNum + fileNameNum + lastFile
     return ByteCode
 
 # gets the Byte code from a string message
@@ -65,22 +83,54 @@ def findPartNum(message):
     return int.from_bytes(message[start:end], 'big')
 
 # gets the total number of parts from a Byte string in form of int
-def findTotalPartNum(message):
+def findfileNameNum(message):
     # if the header has not been detached from the rest of the data (slow)
     if len(message) > totalHeaderBytes:
         message = getByteCodeFromMessage(message)
     #if the header only has been passed in
     start = codeBytes + clientBytes + partNumBytes
-    end = start + totPartsBytes
+    end = start + fileNameBytes
+    return int.from_bytes(message[start:end], 'big')
+
+# gets last file confirmation byte
+def findLastFile(message):
+    # if the header has not been detached from the rest of the data (slow)
+    if len(message) > totalHeaderBytes:
+        message = getByteCodeFromMessage(message)
+    #if the header only has been passed in
+    start = codeBytes + clientBytes + partNumBytes + fileNameBytes
+    end = start + lastFileBytes
     return int.from_bytes(message[start:end], 'big')
 
 def getStringCodeFromByteCode(byteCode):
     code = findCode(byteCode)
     client = findClient(byteCode)
     partNum = findPartNum(byteCode)
-    totPartNum = findTotalPartNum(byteCode)
-    string = f'{code:0{codeBytes*8}}' + f'{client:0{clientBytes*8}}' + f'{partNum:0{partNumBytes*8}}' + f'{totPartNum:0{totPartsBytes*8}}'
+    fileNameNum = findfileNameNum(byteCode)
+    lastFile = findLastFile(byteCode)
+    string = f'{code:0{codeBytes*8}}' + f'{client:0{clientBytes*8}}' + f'{partNum:0{partNumBytes*8}}' + f'{fileNameNum:0{fileNameBytes*8}}' + f'{lastFile:0{lastFileBytes*8}}'
     return string
+
+def removeByteCode(message):
+    finalFile = message[totalHeaderBytes - 1: len(message)]
+    return finalFile
+
+def bubbleSort(partitionArray):
+    n = len(partitionArray)
+    for i in range(n):
+        for j in range(0, n-i-1):
+            if findPartNum(partitionArray[j]) > findPartNum(partitionArray[j+1]):
+                partitionArray[j], partitionArray[j+1] = partitionArray[j+1], partitionArray[j]
+
+def rebuildFile(partitionArray):
+    bubbleSort(partitionArray)
+    finalFile = b''
+    fileNumber = findfileNameNum(partitionArray[0])
+    for x in partitionArray:
+        finalFile = finalFile + removeByteCode(x)
+    finalFile = finalFile[1:len(finalFile)]
+    fileInfo = [fileNumber, finalFile]
+    return fileInfo
 
 # no assigned client number yet
 assignedClientNumber = 0
@@ -89,43 +139,43 @@ assignedClientNumber = 0
 declared = False
 # empty IP number as it will find its own ip which is assigned by docker
 IngressAddressPort = ("", 49668)
-bufferSize = 1024
+bufferSize = 20000
 
 # create a UDP socket at client side
 UDPClientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
 
-numberOfRequests = 0
 # send initial request to Ingress using created UDP socket
 # POSSIBLE BUG: has to be done at least once before the while loop? i assume it is because it keeps listening for a message from Ingress
 # says the request number and then a human readable code, then the Byte code
-byteCodeToSend = createByteCode(0, assignedClientNumber, 0, 0)
-requestFromClient = "{} We have done this {} times! Please tell worker I said hi [Code: {}]".format(getStringCodeFromByteCode(byteCodeToSend), numberOfRequests, messageCodes[0])
-print(requestFromClient)
-bytesToSend = byteCodeToSend + str.encode(requestFromClient)
+fileChoice = randrange(len(availableFiles))
+#print("This is a random file choice: ", fileChoice + 1)
+byteCodeToSend = createByteCode(0, assignedClientNumber, 0, fileChoice, 1)
+print("\nRequesting file '{}'".format(availableFiles[fileChoice]))
+bytesToSend = byteCodeToSend
 UDPClientSocket.sendto(bytesToSend, IngressAddressPort)
-numberOfRequests+=1
+
+receivedFiles = []
 
 # seeks out reply from ingress
 while True:
+    totalFileParts = -1
+
     bytesReceivedFromIngress = UDPClientSocket.recvfrom(bufferSize)
     bytesMessageFromIngress = bytesReceivedFromIngress[0]
     byteCode = getByteCodeFromMessage(bytesMessageFromIngress)
 
     receivedMessageCode = findCode(byteCode)
     receivedPartNum = findPartNum(byteCode)
-    receivedTotalPartNum = findTotalPartNum(byteCode)
+    receivedfileNameNum = findfileNameNum(byteCode)
+    receivedLastFile = findLastFile(byteCode)
 
     # if confirmation from ingress is received
-    if receivedMessageCode == 5:
-        byteCodeToSend = createByteCode(5, assignedClientNumber, receivedPartNum, receivedTotalPartNum)
-        msgWhenReceived = "{} Oh mein got!!!! I received zat message so gut!!!!!!!! [Code: {}]".format(getStringCodeFromByteCode(byteCodeToSend), messageCodes[1])
-        print(msgWhenReceived)
-
-    # send request to Ingress using created UDP socket 3 times
-    if numberOfRequests < 3:
-        byteCodeToSend = createByteCode(0, assignedClientNumber, 0, 0)
-        requestFromClient = "{} We have done this {} times! Please tell worker I said hi [Code: {}]".format(getStringCodeFromByteCode(byteCodeToSend), numberOfRequests, messageCodes[0])
-        print(requestFromClient)
-        bytesToSend = byteCodeToSend + str.encode(requestFromClient)
-        UDPClientSocket.sendto(bytesToSend, IngressAddressPort)
-        numberOfRequests+=1
+    if receivedMessageCode == 3:
+        receivedFiles.insert(receivedPartNum, bytesMessageFromIngress)
+        if receivedLastFile == 1:
+            totalFileParts = receivedPartNum
+            if len(receivedFiles) - 1 == totalFileParts:
+                finalFileInfo = rebuildFile(receivedFiles)
+                print("Received the file: '{}'".format(availableFiles[finalFileInfo[0]]))
+                finalFileData = finalFileInfo[1]
+                receivedFiles = []
