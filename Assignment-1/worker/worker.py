@@ -10,7 +10,7 @@ messageCodes = ["r3qu35t-cl13nt","c0nf1rmat10n-cl13nt", "r3qu35t-w0rk3r",
 # code "w0rk3r" = worker
 # code "1ngr355" = ingress
 
-availableFiles = ["test1.txt", "test2.txt", "test3.txt", "test4.txt"]
+availableFiles = ["test1.txt", "test2.txt", "test3.txt", "test4.txt", "bo_minion.png", "block.png"]
 
 codeBytes = 1
 clientBytes = 2
@@ -18,7 +18,7 @@ partNumBytes = 2
 fileNameBytes = 2
 lastFileBytes = 1
 totalHeaderBytes = codeBytes + clientBytes + partNumBytes + fileNameBytes + lastFileBytes
-bufferSize = 20000
+bufferSize = 65500
 maxDataSize = bufferSize - totalHeaderBytes - 10
 
 # function used to find worker addresses or add them if they do not exist on the list yet
@@ -160,5 +160,6 @@ while True:
         for x in filePartitions:
             bytesToSend = x
             if findLastFile(bytesToSend) == 1:
+                print("This many packets have been sent: {}".format(findPartNum(bytesToSend)))
                 print("Have sent the entire file '{}'".format(availableFiles[findfileNameNum(bytesToSend)]))
             UDPWorkerSocket.sendto(bytesToSend, IngressAddressPort)

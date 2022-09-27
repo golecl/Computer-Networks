@@ -1,6 +1,7 @@
 import socket
 import random
 from random import randrange
+#from commonFunctions import *
 
 messageCodes = ["r3qu35t-cl13nt","c0nf1rmat10n-cl13nt", "r3qu35t-w0rk3r",
                 "c0nf1rmat10n-w0rk3r", "r3qu35t-1ngr355", "c0nf1rmat10n-1ngre55",
@@ -30,7 +31,7 @@ messageCodes = ["r3qu35t-cl13nt","c0nf1rmat10n-cl13nt", "r3qu35t-w0rk3r",
 
 localIP = "127.0.0.1"
 localPort = 49668
-bufferSize = 20000
+bufferSize = 65500
 clientAddresses = ['0']
 workerAddresses = []
 unavailableWorkers = []
@@ -149,11 +150,15 @@ UDPIngressSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
 UDPIngressSocket.bind((localIP, localPort))
 
 print("UDP ingress up and listening")
+#printingATest()
 
 # listen for incoming datagrams
+counter = 0
 while True:
     # constantly trying to receive messages
+    counter += 1
     bytesAddressPair = UDPIngressSocket.recvfrom(bufferSize)
+    print("Counter: {}".format(counter))
     message = bytesAddressPair[0]
     address = bytesAddressPair[1]
 
@@ -189,9 +194,9 @@ while True:
     # if a worker sends confirmation
     if receivedMessageCode == 3:
         currentClient = findClient(byteCode)
-        byteCodeToSend = createByteCode(5, currentClient, receivedPartNum, receivedfileNameNum, receivedLastFile)
         bytesToSend = message
         UDPIngressSocket.sendto(bytesToSend, clientAddresses[currentClient])
+        print(findPartNum(bytesToSend))
         # POSSIBLE BUG: COULD RECEIVE LAST FILE BEFORE ALL FILES ARE RECEIVED LOL
         if receivedLastFile == 1:
             makeWorkerAvailabe(address)

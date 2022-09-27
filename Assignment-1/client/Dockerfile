@@ -5,6 +5,8 @@ ADD client.py /client/
 
 WORKDIR /client/
 
+VOLUME ./endFiles:/endFiles
+
 # THIS IS ESSENTIAL FOR THE CLIENT SERVER COMMUNICATION
 EXPOSE 49668/udp
 

@@ -10,7 +10,7 @@ messageCodes = ["r3qu35t-cl13nt","c0nf1rmat10n-cl13nt", "r3qu35t-w0rk3r",
 # code "w0rk3r" = worker
 # code "1ngr355" = ingress
 
-availableFiles = ["test1.txt", "test2.txt", "test3.txt", "test4.txt"]
+availableFiles = ["test1.txt", "test2.txt", "test3.txt", "test4.txt", "bo_minion.png", "block.png"]
 
 # TODO: IMPLEMENT SORTING ALGORITHM FOR THE FILE PARTITIONS
 
@@ -139,7 +139,7 @@ assignedClientNumber = 0
 declared = False
 # empty IP number as it will find its own ip which is assigned by docker
 IngressAddressPort = ("", 49668)
-bufferSize = 20000
+bufferSize = 65500
 
 # create a UDP socket at client side
 UDPClientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
@@ -147,7 +147,8 @@ UDPClientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
 # send initial request to Ingress using created UDP socket
 # POSSIBLE BUG: has to be done at least once before the while loop? i assume it is because it keeps listening for a message from Ingress
 # says the request number and then a human readable code, then the Byte code
-fileChoice = randrange(len(availableFiles))
+#fileChoice = randrange(len(availableFiles))
+fileChoice = 5
 #print("This is a random file choice: ", fileChoice + 1)
 byteCodeToSend = createByteCode(0, assignedClientNumber, 0, fileChoice, 1)
 print("\nRequesting file '{}'".format(availableFiles[fileChoice]))
@@ -157,8 +158,8 @@ UDPClientSocket.sendto(bytesToSend, IngressAddressPort)
 receivedFiles = []
 
 # seeks out reply from ingress
+totalFileParts = -1
 while True:
-    totalFileParts = -1
 
     bytesReceivedFromIngress = UDPClientSocket.recvfrom(bufferSize)
     bytesMessageFromIngress = bytesReceivedFromIngress[0]
@@ -172,10 +173,22 @@ while True:
     # if confirmation from ingress is received
     if receivedMessageCode == 3:
         receivedFiles.insert(receivedPartNum, bytesMessageFromIngress)
+        print("This many packets have been received: {}".format(len(receivedFiles)))
         if receivedLastFile == 1:
             totalFileParts = receivedPartNum
+        if len(receivedFiles) - 1 == totalFileParts:
+            print("gotted 4")
+            print("This many packets have been received: {}".format(len(receivedFiles)))
             if len(receivedFiles) - 1 == totalFileParts:
+                print("got here 0")
                 finalFileInfo = rebuildFile(receivedFiles)
-                print("Received the file: '{}'".format(availableFiles[finalFileInfo[0]]))
+                print("got here 1")
+                file = open(r"../endFiles/{}".format(availableFiles[receivedfileNameNum]), "w")
+                file = open(r"../endFiles/{}".format(availableFiles[receivedfileNameNum]), "wb")
+                print("got here 2")
                 finalFileData = finalFileInfo[1]
+                #print(finalFileData)
+                file.write(finalFileData)
+                file.close()
+                print("Received the file: '{}'".format(availableFiles[finalFileInfo[0]]))
                 receivedFiles = []

@@ -4,6 +4,8 @@ services:
     build: ./ingress/
     container_name: udp_ingress
     network_mode: "host"
+    volumes:
+      - ./commonResources:/commonResources/commonFunctions
 
   udpclient:
     build: ./client/
@@ -13,7 +15,9 @@ services:
       - "udpworker"
     deploy:
       mode: replicated
-      replicas: 3
+      replicas: 1
+    volumes:
+      - ./endFiles:/endFiles
 
   udpworker:
     build: ./worker/
@@ -22,10 +26,14 @@ services:
       - "udpingress"
     deploy:
       mode: replicated
-      replicas: 3
+      replicas: 1
 
   tcpdump:
     image: kaazing/tcpdump
     network_mode: "host"
     volumes:
       - ./tcpdump:/tcpdump
+
+volumes:
+  commonResources:
+    #read_only: true
