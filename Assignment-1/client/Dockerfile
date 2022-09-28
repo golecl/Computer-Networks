@@ -1,7 +1,8 @@
 
 FROM python:latest
 
-ADD client.py /client/
+ADD client/client.py /client/
+COPY commonResources/ /client/
 
 WORKDIR /client/
 

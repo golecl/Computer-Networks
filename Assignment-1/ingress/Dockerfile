@@ -1,10 +1,7 @@
 FROM python:latest
 
-# VOLUME /commonResources/
-
-ADD ingress.py /ingress/
-
-# COPY commonFunctions.py ./commonResources/
+ADD ingress/ingress.py /ingress/
+COPY commonResources/ /ingress/
 
 WORKDIR /ingress/
 

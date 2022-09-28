@@ -1,14 +1,17 @@
 version: '3.7'
 services:
   udpingress:
-    build: ./ingress/
+    build:
+      dockerfile:
+        ingress/Dockerfile
     container_name: udp_ingress
     network_mode: "host"
-    volumes:
-      - ./commonResources:/commonResources/commonFunctions
+
 
   udpclient:
-    build: ./client/
+    build:
+      dockerfile:
+        client/Dockerfile
     network_mode: "host"
     depends_on:
       - "udpingress"
@@ -20,7 +23,9 @@ services:
       - ./endFiles:/endFiles
 
   udpworker:
-    build: ./worker/
+    build:
+      dockerfile:
+        worker/Dockerfile
     network_mode: "host"
     depends_on:
       - "udpingress"
@@ -36,4 +41,3 @@ services:
 
 volumes:
   commonResources:
-    #read_only: true
