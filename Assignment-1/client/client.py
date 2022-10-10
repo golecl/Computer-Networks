@@ -1,7 +1,9 @@
-import socket
-from random import randrange
 from commonFunctions import *
-from listOfFiles import availableFiles
+
+# message codes:
+# 0 = client request for file
+# 1 = worker declaration
+# 2 = worker file sent
 
 def removeByteCode(message):
     finalFile = message[totalHeaderBytes - 1: len(message)]
@@ -37,7 +39,7 @@ UDPClientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
 # POSSIBLE BUG: has to be done at least once before the while loop? i assume it is because it keeps listening for a message from Ingress
 # says the request number and then a human readable code, then the Byte code
 #fileChoice = randrange(len(availableFiles))
-fileChoice = 5
+fileChoice = len(availableFiles) - 1
 #print("This is a random file choice: ", fileChoice + 1)
 byteCodeToSend = createByteCode(0, 0, 0, fileChoice, 1)
 print("\nRequesting file '{}'".format(availableFiles[fileChoice]))
@@ -60,23 +62,18 @@ while True:
     receivedLastFile = findLastFile(byteCode)
 
     # if confirmation from ingress is received
-    if receivedMessageCode == 3:
+    if receivedMessageCode == 2:
         receivedFiles.insert(receivedPartNum, bytesMessageFromIngress)
         print("This many packets have been received: {}".format(len(receivedFiles)))
         if receivedLastFile == 1:
             totalFileParts = receivedPartNum
         if len(receivedFiles) - 1 == totalFileParts:
-            print("gotted 4")
             print("This many packets have been received: {}".format(len(receivedFiles)))
             if len(receivedFiles) - 1 == totalFileParts:
-                print("got here 0")
                 finalFileInfo = rebuildFile(receivedFiles)
-                print("got here 1")
                 file = open(r"../endFiles/{}".format(availableFiles[receivedfileNameNum]), "w")
                 file = open(r"../endFiles/{}".format(availableFiles[receivedfileNameNum]), "wb")
-                print("got here 2")
                 finalFileData = finalFileInfo[1]
-                #print(finalFileData)
                 file.write(finalFileData)
                 file.close()
                 print("Received the file: '{}'".format(availableFiles[finalFileInfo[0]]))

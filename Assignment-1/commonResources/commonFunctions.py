@@ -1,9 +1,10 @@
-codeBytes = 1
-clientBytes = 2
-partNumBytes = 2
-fileNameBytes = 2
-lastFileBytes = 1
-totalHeaderBytes = codeBytes + clientBytes + partNumBytes + fileNameBytes + lastFileBytes
+import multiprocessing
+from random import randrange
+import socket
+import random
+import math
+from listOfFiles import *
+
 bufferSize = 65500
 
 # function used to find worker addresses or add them if they do not exist on the list yet
@@ -16,6 +17,17 @@ def findIfUnitAlreadyDeclared(list, address):
     except:
         list.append(address)
         return list.index(address)
+
+# ~~~~~~~~~~~~~~~~~~~~ BYTECODE SECTION ~~~~~~~~~~~~~~~~~~~~~~ BYTECODE SECTION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ BYTECODE SECTION ~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~ BYTECODE SECTION ~~~~~~~~~~~~~~~~~~~~~~ BYTECODE SECTION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ BYTECODE SECTION ~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~ BYTECODE SECTION ~~~~~~~~~~~~~~~~~~~~~~ BYTECODE SECTION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ BYTECODE SECTION ~~~~~~~~~~~~~~~~~~~~~
+
+codeBytes = 1
+clientBytes = 2
+partNumBytes = 2
+fileNameBytes = 2
+lastFileBytes = 1
+totalHeaderBytes = codeBytes + clientBytes + partNumBytes + fileNameBytes + lastFileBytes
 
 # creates the Byte code used to identify the action, client, current file part, and total file parts
 def createByteCode(messageCode, client, partNumber, fileNames, lastFile):
@@ -34,7 +46,7 @@ def getByteCodeFromMessage(message):
     return ByteCode
 
 # FOR ALL "find" FUNCTIONS BELOW:
-    # ONLY PASS IN THE FIRST FEW BYTES OF A MESSAGE BECAUSE OTHERWISE IT MIGHT BE SLOE
+    # ONLY PASS IN THE FIRST FEW BYTES OF A MESSAGE BECAUSE OTHERWISE IT MIGHT BE SLOW
 
 # gets the message code from a Byte string in form of int
 def findCode(message):
@@ -67,7 +79,7 @@ def findPartNum(message):
     end = start + partNumBytes
     return int.from_bytes(message[start:end], 'big')
 
-# gets the total number of parts from a Byte string in form of int
+# gets the file name number of parts from a Byte string in form of int
 def findfileNameNum(message):
     # if the header has not been detached from the rest of the data (slow)
     if len(message) > totalHeaderBytes:
@@ -95,3 +107,8 @@ def getStringCodeFromByteCode(byteCode):
     lastFile = findLastFile(byteCode)
     string = f'{code:0{codeBytes*8}}' + f'{client:0{clientBytes*8}}' + f'{partNum:0{partNumBytes*8}}' + f'{fileNameNum:0{fileNameBytes*8}}' + f'{lastFile:0{lastFileBytes*8}}'
     return string
+
+
+# ~~~~~~~~~~~~~~~~~~~~~ MULTIPROCESSING SECTION ~~~~~~~~~~~~~~~~~~~~~~ MULTIPROCESSING SECTION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ MULTIPROCESSING SECTION ~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~ MULTIPROCESSING SECTION ~~~~~~~~~~~~~~~~~~~~~~ MULTIPROCESSING SECTION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ MULTIPROCESSING SECTION ~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~ MULTIPROCESSING SECTION ~~~~~~~~~~~~~~~~~~~~~~ MULTIPROCESSING SECTION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ MULTIPROCESSING SECTION ~~~~~~~~~~~~~~~~~~~~~~~~

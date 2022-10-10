@@ -1,7 +1,10 @@
-import socket
-import math
 from commonFunctions import *
 from listOfFiles import availableFiles
+
+# message codes:
+# 0 = client request for file
+# 1 = worker declaration
+# 2 = worker file sent
 
 maxDataSize = bufferSize - totalHeaderBytes - 10
 
@@ -19,20 +22,17 @@ def packetPartitioning(fileIndex, clientNumber):
         else:
             partition = fileBytes[x*maxDataSize : len(fileBytes)]
             lastFileConfirmation = 1
-        byteCode = createByteCode(3, clientNumber, x, fileIndex, lastFileConfirmation)
+        byteCode = createByteCode(2, clientNumber, x, fileIndex, lastFileConfirmation)
         partition = byteCode + partition
         partitionedFileBytes.append(partition)
     return partitionedFileBytes
 
-
-# empty IP number as it will find its own ip which is assigned by docker
 IngressAddressPort = ("127.0.0.1", 49668)
-
 # create a UDP socket at Worker side
 UDPWorkerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
 
-# sends declaration
-byteCodeToSend = createByteCode(7, 0, 0, 0, 1);
+# sends declaration to ingress
+byteCodeToSend = createByteCode(1, 0, 0, 0, 1)
 bytesToSend = byteCodeToSend
 print("\nSent declaration to ingress")
 UDPWorkerSocket.sendto(bytesToSend, IngressAddressPort)
@@ -49,7 +49,7 @@ while True:
 
     # if the ingress is sending on a request made by a client
     # it sends back all files requested in 1 or more partitions
-    if receivedMessageCode == 4:
+    if receivedMessageCode == 0:
         filePartitions = packetPartitioning(receivedfileNameNum, receivedClientNum)
         for x in filePartitions:
             bytesToSend = x

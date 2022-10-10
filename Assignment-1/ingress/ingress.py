@@ -1,7 +1,9 @@
-import socket
-import random
-from random import randrange
 from commonFunctions import *
+
+# message codes:
+# 0 = client request for file
+# 1 = worker declaration
+# 2 = worker file sent
 
 # each datagram will contain 7 bytes in the beggining describing all of the useful information
 # this information will change but currently it is action code, client number, part number, and total number of parts
@@ -62,14 +64,9 @@ while True:
     receivedLastFile = findLastFile(byteCode)
 
     # if a worker sends a delcaration of existence
-    if receivedMessageCode == 7:
+    if receivedMessageCode == 1:
         # gets the index of the current workers address
         currentWorker = findIfUnitAlreadyDeclared(workerAddresses, address)
-        byteCodeToSend = createByteCode(5, 0, 0, 0, 1)
-        confirmation = "Declared worker {}".format(currentWorker)
-        print(confirmation)
-        bytesToSend = byteCodeToSend
-        UDPIngressSocket.sendto(bytesToSend, workerAddresses[currentWorker])
 
     # if a client sends a request
     if receivedMessageCode == 0:
@@ -78,13 +75,13 @@ while True:
         # if workers have declared themselves, the ingress will choose a random one and send on the clients request to them
         if len(workerAddresses) != 0:
             currentWorker = selectAvailableWorker()
-            byteCodeToSend = createByteCode(4, currentClient, 0, receivedfileNameNum, 1)
+            byteCodeToSend = createByteCode(0, currentClient, 0, receivedfileNameNum, 1)
             print("Received a request from client for a file")
             bytesToSend = byteCodeToSend
             UDPIngressSocket.sendto(bytesToSend, currentWorker)
 
     # if a worker sends confirmation
-    if receivedMessageCode == 3:
+    if receivedMessageCode == 2:
         currentClient = findClient(byteCode)
         bytesToSend = message
         UDPIngressSocket.sendto(bytesToSend, clientAddresses[currentClient])
