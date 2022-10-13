@@ -5,7 +5,6 @@ import socket
 import random
 import math
 from listOfFiles import *
-from func_timeout import func_timeout, FunctionTimedOut
 
 # message codes:
 # 0 = client request for file
@@ -128,6 +127,10 @@ def getStringCodeFromByteCode(byteCode):
     string = f'{code:0{codeBytes*8}}' + f'{client:0{clientBytes*8}}' + f'{partNum:0{partNumBytes*8}}' + f'{fileNameNum:0{fileNameBytes*8}}' + f'{lastFile:0{windowLastByte*8}}'
     return string
 
+def removeByteCode(message):
+    finalFile = message[totalHeaderBytes - 1:]
+    return finalFile
+
 # ~~~~~~~~~~~~~~~~~~~~~ ERROR HANDLING SECTION ~~~~~~~~~~~~~~~~~~~~~~ ERROR HANDLING SECTION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ERROR HANDLING SECTION ~~~~~~~~~~~~~~~~~~~~~~~~
 # ~~~~~~~~~~~~~~~~~~~~~ ERROR HANDLING SECTION ~~~~~~~~~~~~~~~~~~~~~~ ERROR HANDLING SECTION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ERROR HANDLING SECTION ~~~~~~~~~~~~~~~~~~~~~~~~
 # ~~~~~~~~~~~~~~~~~~~~~ ERROR HANDLING SECTION ~~~~~~~~~~~~~~~~~~~~~~ ERROR HANDLING SECTION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ERROR HANDLING SECTION ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -161,115 +164,117 @@ def findLargestFactor(number, threshold):
             largestFactor = x
     return largestFactor
 
-def listenForACK(socketName, packetsToSendBack):
-    print("i exist 2")
+def listenForACK(socketName, packetsInWindow, timeout, indexOffset):
+    socketName.settimeout(timeout)
     packetsLeft = 0
-    for x in packetsToSendBack:
-        if x != 0:
+    for packet in packetsInWindow:
+        if packet != 0:
             packetsLeft += 1
-    print("i exist 3")
     while True:
-        print("i exist 4")
-        print(socketName)
-        bytesReceived = socketName.recvfrom(bufferSize)
-        print("i exist 5")
+        try:
+            bytesReceived = socketName.recvfrom(bufferSize)
+        except:
+            return packetsInWindow
         bytesMessage = bytesReceived[0]
         byteCode = getByteCodeFromMessage(bytesMessage)
         operation = findCode(byteCode)
-        print("i exist")
         if operation == 3:
             partNum = findPartNum(byteCode)
-            packetsToSendBack[partNum] = 0
+            packetsInWindow[partNum - indexOffset] = 0
             packetsLeft -= 1
-            print("got ACK for packet ", partNum)
+            if packetsLeft == 0:
+                return 1
         elif operation == 4:
             partNum = findPartNum(byteCode)
-            packetsToSendBack[partNum] = bytesMessage
-            packetsLeft += 1
-            print("got NACK for packet ", partNum)
+            packetsInWindow[partNum - indexOffset] = bytesMessage
+            for packet in packetsInWindow:
+                if packet != 0:
+                    packetsLeft += 1
         if packetsLeft == 0:
-            return True
+            return 1
 
 # takes in sender socket, the address port of the reciever and the packets to send
-def selectiveARQSender(senderSocket, addressPort, packetsToSend):
-    windowSize = findWindowSize(packetsToSend[0])
-    print("window size sender = ", windowSize)
-    print("got here 3")
+def selectiveARQSender(senderSocket, addressPort, allPacketPartitions):
+    windowSize = findWindowSize(allPacketPartitions[0])
     windowCounter = 0
-    timeout = windowSize*2
+    timeout = windowSize*4
     while True:
-        try:
-            packetsInWindow = packetsToSend[windowCounter*windowSize : (windowCounter + 1)*windowSize]
-            print("got here 4")
-        except:
+        indexOffset = windowCounter*windowSize
+        if (windowCounter*windowSize) < len(allPacketPartitions):
+            # set the packets in the window to the packets in the correct range from total packets
+            packetsInWindow = allPacketPartitions[windowCounter*windowSize : (windowCounter + 1)*windowSize]
+        else:
+            # if not possible, reached the end and break function
+            print("SENT ALLLLLLL PACKETS PERIODDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD")
+            senderSocket.settimeout(None)
             break
-        moveWindow = False
+        moveWindow = 0
         remainingPackets = packetsInWindow
-        while moveWindow == False:
-            print("got here 5")
+        while moveWindow == 0:
             for packet in remainingPackets:
                 if packet != 0:
                     bytesToSend = packet
-                    print("sending packet number ", findPartNum(bytesToSend))
                     senderSocket.sendto(bytesToSend, addressPort)
-                    print("got here 6")
-            try:
-                moveWindow = func_timeout(timeout, listenForACK, args=(senderSocket, remainingPackets))
-            except FunctionTimedOut:
-                print("got here 7")
-                moveWindow = False
-        if moveWindow == True:
+            moveWindow = listenForACK(senderSocket, remainingPackets, timeout, indexOffset)
+        if moveWindow == 1:
             windowCounter += 1
 
-def receiveFiles(receiverSocket, receivedPackets, windowSize, windowCounter):
+def receiveFiles(receiverSocket, receivedPackets, windowSize, windowCounter, timeout):
     indexOffset = windowSize * windowCounter
+    receiverSocket.settimeout(timeout)
     while True:
+        # if all packets received, move window
         if 0 not in receivedPackets:
+            # if all packets including "last file" received, stop the receiver function
             if findLastFile(receivedPackets[len(receivedPackets) - 1]) == 1:
                 return -1
-            return True
-        receivedPacket = receiverSocket.recvfrom(bufferSize)
-        receivedPackets.insert(findPartNum(receivedPacket) - indexOffset, receivedPacket)
+            return 1
+        # try to receive packets and place them in the appropriate window
+        try:
+            receivedPair = receiverSocket.recvfrom(bufferSize)
+            receivedPacket = receivedPair[0]
+            address = receivedPair[1]
+            bytesToSend = createByteCode(3, findClient(receivedPacket), findPartNum(receivedPacket), findfileNameNum(receivedPacket), 0)
+            receiverSocket.sendto(bytesToSend, address)
+            if (findPartNum(receivedPacket) - indexOffset) < (indexOffset + windowSize):
+                receivedPackets[findPartNum(receivedPacket) - indexOffset] = receivedPacket
+        # if packet not received, do not move the window
+        except:
+            return 0
+            
 
 
 # takes in receiver socket and the address port of the sender, along with the first packet
 def selectiveARQReceiver(receiverSocket, addressPort, firstPacket):
     windowSize = findWindowSize(firstPacket)
-    print("window size receiver = ", windowSize)
-    print("got here 8")
     windowCounter = 0
-    timeout = windowSize*2
+    timeout = windowSize*8
+    indexOffset = windowSize * windowCounter
     totalReceivedPackets = []
     receivedPacketsInWindow = [0]*windowSize
-    receivedPacketsInWindow.insert(findPartNum(firstPacket), firstPacket)
-    moveWindow = False
+    clientNumber = findClient(firstPacket)
+    fileNameNum = findfileNameNum(firstPacket)
+    moveWindow = 0
     while True:
-        print("got here 9")
-        windowOffset = windowSize * windowCounter
-        try:
-            moveWindow = func_timeout(timeout, receiveFiles, args=(receiverSocket, receivedPacketsInWindow, windowSize, windowCounter))
-            print(moveWindow)
-            if moveWindow == -1:
-                print("got here 10")
-                break
-        except FunctionTimedOut:
-            for packet in range(len(receivedPacketsInWindow)):
-                if receivedPacketsInWindow[packet] == 0:
-                    print("got here 11")
-                    missingPartNum = packet + windowOffset
-                    if packet == len(receivedPacketsInWindow):
-                        lastNum = 1
-                    else:
-                        lastNum = 0
-                    bytesToSend = createByteCode(4, findClient(firstPacket), missingPartNum, findfileNameNum(firstPacket), lastNum)
-                    print("missing part ", missingPartNum)
-                    print("this is what im sending ", bytesToSend, addressPort)
-                    receiverSocket.sendto(bytesToSend, addressPort)
-                    print("got here 12")
-        if moveWindow == True:
+        moveWindow = receiveFiles(receiverSocket, receivedPacketsInWindow, windowSize, windowCounter, timeout)
+        if moveWindow == -1:
+            totalReceivedPackets = totalReceivedPackets + receivedPacketsInWindow
+            break
+        for packet in range(len(receivedPacketsInWindow)):
+            if receivedPacketsInWindow[packet] == 0:
+                missingPartNum = packet + indexOffset
+                if packet == len(receivedPacketsInWindow):
+                    lastNum = 1
+                else:
+                    lastNum = 0
+                bytesToSend = createByteCode(4, clientNumber, missingPartNum, fileNameNum, lastNum)
+                receiverSocket.sendto(bytesToSend, addressPort)
+        if moveWindow == 1:
             windowCounter += 1
             totalReceivedPackets = totalReceivedPackets + receivedPacketsInWindow
-            print("got here 13")
+            moveWindow = 0
+            receivedPacketsInWindow = [0]*windowSize
+            indexOffset = windowSize * windowCounter
     return totalReceivedPackets
 
 

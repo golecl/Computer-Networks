@@ -5,10 +5,6 @@ from commonFunctions import *
 # 1 = worker declaration
 # 2 = worker file sent
 
-def removeByteCode(message):
-    finalFile = message[totalHeaderBytes - 1:]
-    return finalFile
-
 def bubbleSort(partitionArray):
     n = len(partitionArray)
     for i in range(n):
@@ -39,7 +35,7 @@ UDPClientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
 # POSSIBLE BUG: has to be done at least once before the while loop? i assume it is because it keeps listening for a message from Ingress
 # says the request number and then a human readable code, then the Byte code
 #fileChoice = randrange(len(availableFiles))
-fileChoice = len(availableFiles) - 1
+fileChoice = 4
 #print("This is a random file choice: ", fileChoice + 1)
 byteCodeToSend = createByteCode(0, 0, 0, fileChoice, 1)
 print("\nRequesting file '{}'".format(availableFiles[fileChoice]))

@@ -54,12 +54,9 @@ while True:
     # if the ingress is sending on a request made by a client
     # it sends back all files requested in 1 or more partitions
     if receivedMessageCode == 0:
-        print("processing request")
-        print("This is my original socket ", UDPWorkerSocket)
         filePartitions = packetPartitioning(receivedfileNameNum, receivedClientNum)
-        print("got here 1")
+        print("this many packets", len(filePartitions))
         selectiveARQSender(UDPWorkerSocket, IngressAddressPort, filePartitions)
-        print("got here 2")
 
         #print("This many packets have been sent: {}".format(windowSize * windowCounter)
         #print("Have sent the entire file '{}'".format(availableFiles[findfileNameNum(bytesToSend)]))

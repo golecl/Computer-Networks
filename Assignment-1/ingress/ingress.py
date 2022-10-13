@@ -52,7 +52,6 @@ while True:
     # constantly trying to receive messages
     counter += 1
     bytesAddressPair = UDPIngressSocket.recvfrom(bufferSize)
-    print("Counter: {}".format(counter))
     message = bytesAddressPair[0]
     address = bytesAddressPair[1]
 
