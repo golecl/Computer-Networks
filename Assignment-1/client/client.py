@@ -18,7 +18,7 @@ def rebuildFile(partitionArray):
     fileNumber = findfileNameNum(partitionArray[0])
     for x in partitionArray:
         finalFile = finalFile + removeByteCode(x)
-    finalFile = finalFile[1:]
+    #finalFile = finalFile[1:]
     fileInfo = [fileNumber, finalFile]
     return fileInfo
 

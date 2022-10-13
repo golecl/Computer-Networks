@@ -129,7 +129,7 @@ def getStringCodeFromByteCode(byteCode):
 
 def removeByteCode(message):
     finalFile = message[totalHeaderBytes - 1:]
-    return finalFile
+    return finalFile[1:]
 
 # ~~~~~~~~~~~~~~~~~~~~~ ERROR HANDLING SECTION ~~~~~~~~~~~~~~~~~~~~~~ ERROR HANDLING SECTION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ERROR HANDLING SECTION ~~~~~~~~~~~~~~~~~~~~~~~~
 # ~~~~~~~~~~~~~~~~~~~~~ ERROR HANDLING SECTION ~~~~~~~~~~~~~~~~~~~~~~ ERROR HANDLING SECTION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ERROR HANDLING SECTION ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -275,6 +275,7 @@ def selectiveARQReceiver(receiverSocket, addressPort, firstPacket):
             moveWindow = 0
             receivedPacketsInWindow = [0]*windowSize
             indexOffset = windowSize * windowCounter
+    receiverSocket.settimeout(None)
     return totalReceivedPackets
 
 
