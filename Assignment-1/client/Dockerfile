@@ -1,6 +1,7 @@
 
 FROM python:latest
 
+RUN pip install func-timeout
 ADD client/client.py /client/
 COPY commonResources/ /client/
 

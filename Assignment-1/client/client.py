@@ -6,7 +6,7 @@ from commonFunctions import *
 # 2 = worker file sent
 
 def removeByteCode(message):
-    finalFile = message[totalHeaderBytes - 1: len(message)]
+    finalFile = message[totalHeaderBytes - 1:]
     return finalFile
 
 def bubbleSort(partitionArray):
@@ -22,7 +22,7 @@ def rebuildFile(partitionArray):
     fileNumber = findfileNameNum(partitionArray[0])
     for x in partitionArray:
         finalFile = finalFile + removeByteCode(x)
-    finalFile = finalFile[1:len(finalFile)]
+    finalFile = finalFile[1:]
     fileInfo = [fileNumber, finalFile]
     return fileInfo
 
@@ -54,6 +54,7 @@ while True:
 
     bytesReceivedFromIngress = UDPClientSocket.recvfrom(bufferSize)
     bytesMessageFromIngress = bytesReceivedFromIngress[0]
+    address = bytesReceivedFromIngress[1]
     byteCode = getByteCodeFromMessage(bytesMessageFromIngress)
 
     receivedMessageCode = findCode(byteCode)
@@ -63,18 +64,11 @@ while True:
 
     # if confirmation from ingress is received
     if receivedMessageCode == 2:
-        receivedFiles.insert(receivedPartNum, bytesMessageFromIngress)
-        print("This many packets have been received: {}".format(len(receivedFiles)))
-        if receivedLastFile == 1:
-            totalFileParts = receivedPartNum
-        if len(receivedFiles) - 1 == totalFileParts:
-            print("This many packets have been received: {}".format(len(receivedFiles)))
-            if len(receivedFiles) - 1 == totalFileParts:
-                finalFileInfo = rebuildFile(receivedFiles)
-                file = open(r"../endFiles/{}".format(availableFiles[receivedfileNameNum]), "w")
-                file = open(r"../endFiles/{}".format(availableFiles[receivedfileNameNum]), "wb")
-                finalFileData = finalFileInfo[1]
-                file.write(finalFileData)
-                file.close()
-                print("Received the file: '{}'".format(availableFiles[finalFileInfo[0]]))
-                receivedFiles = []
+        receivedFiles = selectiveARQReceiver(UDPClientSocket, address, bytesMessageFromIngress)
+        finalFileInfo = rebuildFile(receivedFiles)
+        file = open(r"../endFiles/{}".format(availableFiles[receivedfileNameNum]), "wb")
+        finalFileData = finalFileInfo[1]
+        file.write(finalFileData)
+        file.close()
+        print("Received the file: '{}'".format(availableFiles[finalFileInfo[0]]))
+        receivedFiles = []

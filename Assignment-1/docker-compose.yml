@@ -7,7 +7,6 @@ services:
     container_name: udp_ingress
     network_mode: "host"
 
-
   udpclient:
     build:
       dockerfile:

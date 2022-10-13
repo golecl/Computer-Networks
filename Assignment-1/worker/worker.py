@@ -5,6 +5,8 @@ from listOfFiles import availableFiles
 # 0 = client request for file
 # 1 = worker declaration
 # 2 = worker file sent
+# 3 = ACK
+# 4 = NACK
 
 maxDataSize = bufferSize - totalHeaderBytes - 10
 
@@ -15,6 +17,7 @@ def packetPartitioning(fileIndex, clientNumber):
     file = open(availableFiles[fileIndex], "rb")
     fileBytes = file.read() # reads in the file and saves as an array of bytes
     numberOfParts = math.ceil(len(fileBytes)/maxDataSize) # determines how many partitions there will be
+    windowSize = createWindowSize(fileIndex)
     for x in range(numberOfParts):
         if x < numberOfParts - 1:
             partition = fileBytes[x*maxDataSize : (x+1)*maxDataSize]
@@ -22,7 +25,8 @@ def packetPartitioning(fileIndex, clientNumber):
         else:
             partition = fileBytes[x*maxDataSize : len(fileBytes)]
             lastFileConfirmation = 1
-        byteCode = createByteCode(2, clientNumber, x, fileIndex, lastFileConfirmation)
+        windowLastInt = createWindowLastInt(windowSize, lastFileConfirmation)
+        byteCode = createByteCode(2, clientNumber, x, fileIndex, windowLastInt)
         partition = byteCode + partition
         partitionedFileBytes.append(partition)
     return partitionedFileBytes
@@ -50,10 +54,12 @@ while True:
     # if the ingress is sending on a request made by a client
     # it sends back all files requested in 1 or more partitions
     if receivedMessageCode == 0:
+        print("processing request")
+        print("This is my original socket ", UDPWorkerSocket)
         filePartitions = packetPartitioning(receivedfileNameNum, receivedClientNum)
-        for x in filePartitions:
-            bytesToSend = x
-            if findLastFile(bytesToSend) == 1:
-                print("This many packets have been sent: {}".format(findPartNum(bytesToSend)))
-                print("Have sent the entire file '{}'".format(availableFiles[findfileNameNum(bytesToSend)]))
-            UDPWorkerSocket.sendto(bytesToSend, IngressAddressPort)
+        print("got here 1")
+        selectiveARQSender(UDPWorkerSocket, IngressAddressPort, filePartitions)
+        print("got here 2")
+
+        #print("This many packets have been sent: {}".format(windowSize * windowCounter)
+        #print("Have sent the entire file '{}'".format(availableFiles[findfileNameNum(bytesToSend)]))

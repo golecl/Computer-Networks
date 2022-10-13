@@ -67,6 +67,7 @@ while True:
     if receivedMessageCode == 1:
         # gets the index of the current workers address
         currentWorker = findIfUnitAlreadyDeclared(workerAddresses, address)
+        print(address)
 
     # if a client sends a request
     if receivedMessageCode == 0:
@@ -78,15 +79,11 @@ while True:
             byteCodeToSend = createByteCode(0, currentClient, 0, receivedfileNameNum, 1)
             print("Received a request from client for a file")
             bytesToSend = byteCodeToSend
+            print("ingress sends request to ", currentWorker)
             UDPIngressSocket.sendto(bytesToSend, currentWorker)
 
     # if a worker sends confirmation
     if receivedMessageCode == 2:
         currentClient = findClient(byteCode)
-        bytesToSend = message
-        UDPIngressSocket.sendto(bytesToSend, clientAddresses[currentClient])
-        print(findPartNum(bytesToSend))
-        # POSSIBLE BUG: COULD RECEIVE LAST FILE BEFORE ALL FILES ARE RECEIVED LOL
-        if receivedLastFile == 1:
-            makeWorkerAvailabe(address)
-            print("Forwarded file to client")
+        receivedPackets = selectiveARQReceiver(UDPIngressSocket, address, message)
+        selectiveARQSender(UDPIngressSocket, clientAddresses[currentClient], receivedPackets)
