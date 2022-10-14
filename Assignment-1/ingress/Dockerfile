@@ -1,6 +1,5 @@
 FROM python:latest
 
-RUN pip install func-timeout
 ADD ingress/ingress.py /ingress/
 COPY commonResources/ /ingress/
 

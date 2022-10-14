@@ -1,7 +1,6 @@
 
 FROM python:latest
 
-RUN pip install func-timeout
 ADD worker/worker.py /worker/
 COPY commonResources/ /worker/
 ADD worker/files /worker/

@@ -17,7 +17,7 @@ services:
       - "udpworker"
     deploy:
       mode: replicated
-      replicas: 1
+      replicas: 5
     volumes:
       - ./endFiles:/endFiles
 
@@ -30,7 +30,7 @@ services:
       - "udpingress"
     deploy:
       mode: replicated
-      replicas: 1
+      replicas: 7
 
   tcpdump:
     image: kaazing/tcpdump

@@ -1,10 +1,12 @@
-import multiprocessing
+# imports all needed imports for all other files
 from random import randrange
-from shutil import move
 import socket
-import random
 import math
 from listOfFiles import *
+
+# each datagram will contain 8 bytes in the beggining describing all of the useful information
+# this is called the header
+# this information is operation/message code, client number, part number, file name index, last file boolean
 
 # message codes:
 # 0 = client request for file
@@ -15,9 +17,9 @@ from listOfFiles import *
 
 bufferSize = 65500
 
-# function used to find worker addresses or add them if they do not exist on the list yet
+# function used to find an item on a list or add it if it does not exist on the list yet
 def findIfUnitAlreadyDeclared(list, item):
-    # if the unit is already in the list, it returns its index
+    # if the item is already in the list, it returns its index
     try:
         index = list.index(item)
         return index
@@ -26,33 +28,37 @@ def findIfUnitAlreadyDeclared(list, item):
         list.append(item)
         return list.index(item)
 
-# ~~~~~~~~~~~~~~~~~~~~ BYTECODE SECTION ~~~~~~~~~~~~~~~~~~~~~~ BYTECODE SECTION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ BYTECODE SECTION ~~~~~~~~~~~~~~~~~~~~~
-# ~~~~~~~~~~~~~~~~~~~~ BYTECODE SECTION ~~~~~~~~~~~~~~~~~~~~~~ BYTECODE SECTION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ BYTECODE SECTION ~~~~~~~~~~~~~~~~~~~~~
-# ~~~~~~~~~~~~~~~~~~~~ BYTECODE SECTION ~~~~~~~~~~~~~~~~~~~~~~ BYTECODE SECTION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ BYTECODE SECTION ~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~ HEADER SECTION ~~~~~~~~~~~~~~~~~~~~~~ HEADER SECTION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ HEADER SECTION ~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~ HEADER SECTION ~~~~~~~~~~~~~~~~~~~~~~ HEADER SECTION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ HEADER SECTION ~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~ HEADER SECTION ~~~~~~~~~~~~~~~~~~~~~~ HEADER SECTION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ HEADER SECTION ~~~~~~~~~~~~~~~~~~~~~
 
+# this sets the number of bytes that each section of the header takes up
 codeBytes = 1
 clientBytes = 2
 partNumBytes = 2
 fileNameBytes = 2
-windowLastByte = 1
-totalHeaderBytes = codeBytes + clientBytes + partNumBytes + fileNameBytes + windowLastByte
+lastByte = 1
+
+totalHeaderBytes = codeBytes + clientBytes + partNumBytes + fileNameBytes + lastByte
 maxDataSize = bufferSize - totalHeaderBytes - 10
+# sets the timeout for all transmission
+timeout = 3
 
-# creates the Byte code used to identify the action, client, current file part, and total file parts
-def createByteCode(messageCode, client, partNumber, fileNames, windowLastFile):
-    msgCodeByte = messageCode.to_bytes(codeBytes, 'big') # creates a 8 bit Byte number of the message code
-    clientByte = client.to_bytes(clientBytes, 'big') # creates a 16 bit Byte number of the client number
-    partNum = partNumber.to_bytes(partNumBytes, 'big') # creates a byte sized number
-    fileNameNum = fileNames.to_bytes(fileNameBytes, 'big')
-    windowLastFile = windowLastFile.to_bytes(windowLastByte, 'big')
-    ByteCode = msgCodeByte + clientByte + partNum + fileNameNum + windowLastFile
-    return ByteCode
+# creates the header used to identify the action, client, current file part, and total file parts
+def createHeader(messageCode, client, partNumber, fileNames, lastFile):
+    msgCodeByte = messageCode.to_bytes(codeBytes, 'big') # creates a Byte number of the message code
+    clientByte = client.to_bytes(clientBytes, 'big') # creates 2 bytes number of the client number
+    partNum = partNumber.to_bytes(partNumBytes, 'big') # creates a byte sized number of the part number
+    fileNameNum = fileNames.to_bytes(fileNameBytes, 'big') # creates 2 byte sized number of the file name index
+    lastFile = lastFile.to_bytes(lastByte, 'big') # creates byte to represent whether the file is the last or not
+    Header = msgCodeByte + clientByte + partNum + fileNameNum + lastFile
+    return Header
 
-# gets the Byte code from a string message
+# gets the header from a packet
 # NEEDS TO BE PASSED IN ENCODED AS BYTES OTHERWISE WILL NOT WORK
-def getByteCodeFromMessage(message):
-    ByteCode = message[0:totalHeaderBytes]
-    return ByteCode
+def getHeaderFromMessage(message):
+    Header = message[0:totalHeaderBytes]
+    return Header
 
 # FOR ALL "find" FUNCTIONS BELOW:
     # ONLY PASS IN THE FIRST FEW BYTES OF A MESSAGE BECAUSE OTHERWISE IT MIGHT BE SLOW
@@ -61,7 +67,7 @@ def getByteCodeFromMessage(message):
 def findCode(message):
     # if the header has not been detached from the rest of the data (slow)
     if len(message) > totalHeaderBytes:
-        message = getByteCodeFromMessage(message)
+        message = getHeaderFromMessage(message)
     #if the header only has been passed in
     start = 0
     end = start + codeBytes
@@ -72,7 +78,7 @@ def findCode(message):
 def findClient(message):
     # if the header has not been detached from the rest of the data (slow)
     if len(message) > totalHeaderBytes:
-        message = getByteCodeFromMessage(message)
+        message = getHeaderFromMessage(message)
     #if the header only has been passed in
     start = codeBytes
     end = start + clientBytes
@@ -82,7 +88,7 @@ def findClient(message):
 def findPartNum(message):
     # if the header has not been detached from the rest of the data (slow)
     if len(message) > totalHeaderBytes:
-        message = getByteCodeFromMessage(message)
+        message = getHeaderFromMessage(message)
     #if the header only has been passed in
     start = codeBytes + clientBytes
     end = start + partNumBytes
@@ -92,198 +98,155 @@ def findPartNum(message):
 def findfileNameNum(message):
     # if the header has not been detached from the rest of the data (slow)
     if len(message) > totalHeaderBytes:
-        message = getByteCodeFromMessage(message)
+        message = getHeaderFromMessage(message)
     #if the header only has been passed in
     start = codeBytes + clientBytes + partNumBytes
     end = start + fileNameBytes
     return int.from_bytes(message[start:end], 'big')
 
-# gets last file confirmation byte
+# gets last file confirmation byte in form of int
 def findLastFile(message):
     # if the header has not been detached from the rest of the data (slow)
     if len(message) > totalHeaderBytes:
-        message = getByteCodeFromMessage(message)
+        message = getHeaderFromMessage(message)
     #if the header only has been passed in
     start = codeBytes + clientBytes + partNumBytes + fileNameBytes
-    end = start + windowLastByte
-    # returns whether the byte is even or odd which determines whether or not it is the last file
-    return int.from_bytes(message[start:end], 'big') % 2
+    end = start + lastByte
+    # returns whether the packet is the last in the file
+    return int.from_bytes(message[start:end], 'big')
 
-def findWindowSize(message):
-    if len(message) > totalHeaderBytes:
-        message = getByteCodeFromMessage(message)
-    #if the header only has been passed in
-    start = codeBytes + clientBytes + partNumBytes + fileNameBytes
-    end = start + windowLastByte
-    # returns the first 7 bits of the byte as an int which is the window size
-    return math.floor(int.from_bytes(message[start:end], 'big')/2)
-
-def getStringCodeFromByteCode(byteCode):
-    code = findCode(byteCode)
-    client = findClient(byteCode)
-    partNum = findPartNum(byteCode)
-    fileNameNum = findfileNameNum(byteCode)
-    lastFile = findLastFile(byteCode)
-    string = f'{code:0{codeBytes*8}}' + f'{client:0{clientBytes*8}}' + f'{partNum:0{partNumBytes*8}}' + f'{fileNameNum:0{fileNameBytes*8}}' + f'{lastFile:0{windowLastByte*8}}'
-    return string
-
-def removeByteCode(message):
-    finalFile = message[totalHeaderBytes - 1:]
-    # for corruption mode uncomment this:
-    #return finalFile
-    return finalFile[1:]
+def removeHeader(message):
+    finalFile = message[totalHeaderBytes:]
+    return finalFile
 
 # ~~~~~~~~~~~~~~~~~~~~~ ERROR HANDLING SECTION ~~~~~~~~~~~~~~~~~~~~~~ ERROR HANDLING SECTION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ERROR HANDLING SECTION ~~~~~~~~~~~~~~~~~~~~~~~~
 # ~~~~~~~~~~~~~~~~~~~~~ ERROR HANDLING SECTION ~~~~~~~~~~~~~~~~~~~~~~ ERROR HANDLING SECTION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ERROR HANDLING SECTION ~~~~~~~~~~~~~~~~~~~~~~~~
 # ~~~~~~~~~~~~~~~~~~~~~ ERROR HANDLING SECTION ~~~~~~~~~~~~~~~~~~~~~~ ERROR HANDLING SECTION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ERROR HANDLING SECTION ~~~~~~~~~~~~~~~~~~~~~~~~
 
-# input = int: the file index
-# output = int: windowSize
-def createWindowSize(fileIndex):
-    file = open(availableFiles[fileIndex], "rb")
-    fileBytes = file.read() # reads in the file and saves as an array of bytes
-    numberOfParts = math.ceil(len(fileBytes)/maxDataSize) # determines how many partitions there will be
-    maximumWindowSize = pow(2, windowLastByte*8 - 1) - 1
-    # finds the largest factor under half the size and if it exceeds 127 (the number of bits allocates to window size)
-    # it returns the largest factor under 127
-    #windowSize = min(findLargestFactor(numberOfParts, math.floor(numberOfParts/2)), findLargestFactor(numberOfParts, maximumWindowSize))
-    windowSize = 1
-    return windowSize
+# ~~~~~~~~~~~~~~~ sender ARQ subsection ~~~~~~~~~~~~~~~~~~~~
 
-# input = int: window size, int (bool really) = whether or not it is the last packet
-# output = int: concatenation of windowSize + lastPacketBool
-def createWindowLastInt(windowSize, lastFile):
-    # this will turn it into an int that the first 7 bits of will represent the window size
-    # and the last bit will represent whether or not it is the last file
-    windowLastInt = windowSize*2 + lastFile
-    return windowLastInt
-
-# input = number to find largest factor of, limit of the largest factor
-# output = largest factor in number under that limit
-def findLargestFactor(number, threshold):
-    #return 1
-    largestFactor = 1
-    for x in range(1, threshold):
-        if number % x == 0:
-            largestFactor = x
-    return largestFactor
-
-def listenForACK(socketName, packetsInWindow, timeout, indexOffset):
+# listens for ACKs and NACKs and returns the received packet/ received requests
+def listenForACK(socketName):
     socketName.settimeout(timeout)
-    packetsLeft = 0
-    for packet in packetsInWindow:
-        if packet != 0:
-            packetsLeft += 1
+    receivedRequests = []
+    resultPair = [0]*2
     while True:
+        # listen for packets, if timed out return 0
         try:
             bytesReceived = socketName.recvfrom(bufferSize)
+            operation = findCode(bytesReceived[0])
         except:
-            return packetsInWindow
-        bytesMessage = bytesReceived[0]
-        byteCode = getByteCodeFromMessage(bytesMessage)
-        operation = findCode(byteCode)
+            resultPair[0] = 0
+            return resultPair
+        # if new request received, add to list
+        if operation == 0:
+            receivedRequests.append(bytesReceived)
+            resultPair[1] = receivedRequests
+        # if ACK received return 1
         if operation == 3:
-            partNum = findPartNum(byteCode)
-            packetsInWindow[partNum - indexOffset] = 0
-            packetsLeft -= 1
-            if packetsLeft == 0:
-                return 1
-        elif operation == 4:
-            partNum = findPartNum(byteCode)
-            packetsInWindow[partNum - indexOffset] = bytesMessage
-            for packet in packetsInWindow:
-                if packet != 0:
-                    packetsLeft += 1
-        if packetsLeft == 0:
-            return 1
+            resultPair[0] = 1
+            return resultPair
+        # if NACK received, return 0
+        if operation == 4:
+            resultPair[0] = 0
+            return resultPair
 
 # takes in sender socket, the address port of the reciever and the packets to send
-def selectiveARQSender(senderSocket, addressPort, allPacketPartitions):
-    windowSize = findWindowSize(allPacketPartitions[0])
-    windowCounter = 0
-    timeout = 4
+def stopAndWaitARQSender(senderSocket, addressPort, allPacketPartitions):
+    counter = 0
+    receivedRequests = []
     while True:
-        indexOffset = windowCounter*windowSize
-        if (windowCounter*windowSize) < len(allPacketPartitions):
-            # set the packets in the window to the packets in the correct range from total packets
-            packetsInWindow = allPacketPartitions[windowCounter*windowSize : (windowCounter + 1)*windowSize]
+        nextPacket = 0
+        if counter < len(allPacketPartitions):
+            # set the current packet to the correct packet
+            currentPacket = allPacketPartitions[counter]
         else:
             # if not possible, reached the end and break function
-            print("SENT ALLLLLLL PACKETS PERIODDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD")
             senderSocket.settimeout(None)
             break
-        moveWindow = 0
-        remainingPackets = packetsInWindow
-        while moveWindow == 0:
-            for packet in remainingPackets:
-                if packet != 0:
-                    bytesToSend = packet
-                    senderSocket.sendto(bytesToSend, addressPort)
-            moveWindow = listenForACK(senderSocket, remainingPackets, timeout, indexOffset)
-        if moveWindow == 1:
-            windowCounter += 1
+        while nextPacket == 0:
+            # if ACK not received, send the packet
+            senderSocket.sendto(currentPacket, addressPort)
+            listenPair = listenForACK(senderSocket)
+            nextPacket = listenPair[0]
+            if listenPair[1] != 0:
+                # if request received, append list of requests
+                receivedRequests.append(listenPair[1])
+        if nextPacket == 1:
+            # if ACK received, update the packet being sent
+            counter += 1
+    # return the requests received during the ARQ
+    return receivedRequests
 
-def receiveFiles(receiverSocket, receivedPackets, windowSize, windowCounter, timeout):
-    indexOffset = windowSize * windowCounter
-    receiverSocket.settimeout(timeout)
+# ~~~~~~~~~~~~~~~ receiver ARQ subsection ~~~~~~~~~~~~~~~~~~~~
+
+# listens for any received packets, returns the packets and requests
+# also sends ACK for any received packet
+def receiveFiles(receiverSocket, counter):
+    receiverSocket.settimeout(timeout*2)
+    returnPair = [0]*3
+    receivedRequests = []
     while True:
-        # if all packets received, move window
-        if 0 not in receivedPackets:
-            # if all packets including "last file" received, stop the receiver function
-            if findLastFile(receivedPackets[len(receivedPackets) - 1]) == 1:
-                return -1
-            return 1
-        # try to receive packets and place them in the appropriate window
+        # try to receive packets
         try:
             receivedPair = receiverSocket.recvfrom(bufferSize)
-            receivedPacket = receivedPair[0]
+            packet = receivedPair[0]
             address = receivedPair[1]
-            bytesToSend = createByteCode(3, findClient(receivedPacket), findPartNum(receivedPacket), findfileNameNum(receivedPacket), 0)
-            receiverSocket.sendto(bytesToSend, address)
-            if (findPartNum(receivedPacket) - indexOffset) < (indexOffset + windowSize):
-                receivedPackets[findPartNum(receivedPacket) - indexOffset] = receivedPacket
+            packetNumber = findPartNum(packet)
+            operation = findCode(packet)
+            # if socket receives new request while listening for packets
+            if operation == 0:
+                receivedRequests.append(receivedPair)
+                returnPair[2] = receivedRequests
+            elif operation == 2:
+                if packetNumber == counter:
+                    # create ACK and send it 
+                    bytesToSend = createHeader(3, findClient(packet), findPartNum(packet), 0, 0)
+                    receiverSocket.sendto(bytesToSend, address)
+                    returnPair[1] = packet
+                    if findLastFile(packet) == 0:
+                        returnPair[0] = 1
+                        return returnPair
+                    else:
+                        returnPair[0] = -1
+                        return returnPair
         # if packet not received, do not move the window
-        except:
-            return 0
-            
+        except Exception:
+            returnPair[0] = 0
+            returnPair[1] = 0
+            return returnPair
 
-
-# takes in receiver socket and the address port of the sender, along with the first packet
-def selectiveARQReceiver(receiverSocket, addressPort, firstPacket):
-    windowSize = findWindowSize(firstPacket)
-    windowCounter = 0
-    timeout = 8
-    indexOffset = windowSize * windowCounter
+# takes in receiver socket along with the first packet, returns received packets and requests
+def stopAndWaitARQReceiver(receiverSocket, firstPacket):
+    counter = 0
     totalReceivedPackets = []
-    receivedPacketsInWindow = [0]*windowSize
-    clientNumber = findClient(firstPacket)
-    fileNameNum = findfileNameNum(firstPacket)
-    moveWindow = 0
+    packetsAndRequests = [[0]]*2
+    receivedRequests = []
+    address = firstPacket[1]
+    clientNumber = findClient(firstPacket[0])
+    fileNameNum = findfileNameNum(firstPacket[0])
+    mostRecentPacket = 0
+    received = 0
     while True:
-        moveWindow = receiveFiles(receiverSocket, receivedPacketsInWindow, windowSize, windowCounter, timeout)
-        if moveWindow == -1:
-            totalReceivedPackets = totalReceivedPackets + receivedPacketsInWindow
+        receivedPair = receiveFiles(receiverSocket, counter)
+        mostRecentPacket = receivedPair[1]
+        received = receivedPair[0]
+        # if requests were received during the stop and wait arq
+        if receivedPair[2] != 0:
+            receivedRequests.append(receivedPair[2])
+        # if the packet received is the last packet, save it and break the loop
+        if received == -1:
+            totalReceivedPackets.append(mostRecentPacket)
             break
-        for packet in range(len(receivedPacketsInWindow)):
-            if receivedPacketsInWindow[packet] == 0:
-                missingPartNum = packet + indexOffset
-                if packet == len(receivedPacketsInWindow):
-                    lastNum = 1
-                else:
-                    lastNum = 0
-                bytesToSend = createByteCode(4, clientNumber, missingPartNum, fileNameNum, lastNum)
-                receiverSocket.sendto(bytesToSend, addressPort)
-        if moveWindow == 1:
-            windowCounter += 1
-            totalReceivedPackets = totalReceivedPackets + receivedPacketsInWindow
-            moveWindow = 0
-            receivedPacketsInWindow = [0]*windowSize
-            indexOffset = windowSize * windowCounter
+        # if not received, send NACK
+        if received == 0:
+            bytesToSend = createHeader(4, clientNumber, counter, fileNameNum, 0)
+            receiverSocket.sendto(bytesToSend, address)
+        # if received, add to list and move on to next packet
+        if received == 1:
+            counter += 1
+            totalReceivedPackets.append(mostRecentPacket)
     receiverSocket.settimeout(None)
-    return totalReceivedPackets
-
-
-
-# ~~~~~~~~~~~~~~~~~~~~~ MULTIPROCESSING SECTION ~~~~~~~~~~~~~~~~~~~~~~ MULTIPROCESSING SECTION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ MULTIPROCESSING SECTION ~~~~~~~~~~~~~~~~~~~~~~~~
-# ~~~~~~~~~~~~~~~~~~~~~ MULTIPROCESSING SECTION ~~~~~~~~~~~~~~~~~~~~~~ MULTIPROCESSING SECTION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ MULTIPROCESSING SECTION ~~~~~~~~~~~~~~~~~~~~~~~~
-# ~~~~~~~~~~~~~~~~~~~~~ MULTIPROCESSING SECTION ~~~~~~~~~~~~~~~~~~~~~~ MULTIPROCESSING SECTION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ MULTIPROCESSING SECTION ~~~~~~~~~~~~~~~~~~~~~~~~
+    packetsAndRequests[0] = totalReceivedPackets 
+    packetsAndRequests[1] = receivedRequests
+    return packetsAndRequests
