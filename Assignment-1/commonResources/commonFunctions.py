@@ -129,6 +129,8 @@ def getStringCodeFromByteCode(byteCode):
 
 def removeByteCode(message):
     finalFile = message[totalHeaderBytes - 1:]
+    # for corruption mode uncomment this:
+    #return finalFile
     return finalFile[1:]
 
 # ~~~~~~~~~~~~~~~~~~~~~ ERROR HANDLING SECTION ~~~~~~~~~~~~~~~~~~~~~~ ERROR HANDLING SECTION ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ERROR HANDLING SECTION ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -144,7 +146,8 @@ def createWindowSize(fileIndex):
     maximumWindowSize = pow(2, windowLastByte*8 - 1) - 1
     # finds the largest factor under half the size and if it exceeds 127 (the number of bits allocates to window size)
     # it returns the largest factor under 127
-    windowSize = min(findLargestFactor(numberOfParts, math.floor(numberOfParts/2)), findLargestFactor(numberOfParts, maximumWindowSize))
+    #windowSize = min(findLargestFactor(numberOfParts, math.floor(numberOfParts/2)), findLargestFactor(numberOfParts, maximumWindowSize))
+    windowSize = 1
     return windowSize
 
 # input = int: window size, int (bool really) = whether or not it is the last packet
@@ -158,6 +161,7 @@ def createWindowLastInt(windowSize, lastFile):
 # input = number to find largest factor of, limit of the largest factor
 # output = largest factor in number under that limit
 def findLargestFactor(number, threshold):
+    #return 1
     largestFactor = 1
     for x in range(1, threshold):
         if number % x == 0:
@@ -197,7 +201,7 @@ def listenForACK(socketName, packetsInWindow, timeout, indexOffset):
 def selectiveARQSender(senderSocket, addressPort, allPacketPartitions):
     windowSize = findWindowSize(allPacketPartitions[0])
     windowCounter = 0
-    timeout = windowSize*4
+    timeout = 4
     while True:
         indexOffset = windowCounter*windowSize
         if (windowCounter*windowSize) < len(allPacketPartitions):
@@ -248,7 +252,7 @@ def receiveFiles(receiverSocket, receivedPackets, windowSize, windowCounter, tim
 def selectiveARQReceiver(receiverSocket, addressPort, firstPacket):
     windowSize = findWindowSize(firstPacket)
     windowCounter = 0
-    timeout = windowSize*8
+    timeout = 8
     indexOffset = windowSize * windowCounter
     totalReceivedPackets = []
     receivedPacketsInWindow = [0]*windowSize

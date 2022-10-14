@@ -13,12 +13,16 @@ def bubbleSort(partitionArray):
                 partitionArray[j], partitionArray[j+1] = partitionArray[j+1], partitionArray[j]
 
 def rebuildFile(partitionArray):
-    bubbleSort(partitionArray)
-    finalFile = b''
+    partitionArray.sort(key = findPartNum)
+    #print("sorted")
+    #finalFile = b''
     fileNumber = findfileNameNum(partitionArray[0])
-    for x in partitionArray:
-        finalFile = finalFile + removeByteCode(x)
+    for index in range(len(partitionArray)):
+        partitionArray[index] = removeByteCode(partitionArray[index])
+    finalFile = b''.join(partitionArray)
+    # for corruption mode uncomment this:
     #finalFile = finalFile[1:]
+    print("constructed")
     fileInfo = [fileNumber, finalFile]
     return fileInfo
 
@@ -35,7 +39,7 @@ UDPClientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
 # POSSIBLE BUG: has to be done at least once before the while loop? i assume it is because it keeps listening for a message from Ingress
 # says the request number and then a human readable code, then the Byte code
 #fileChoice = randrange(len(availableFiles))
-fileChoice = 4
+fileChoice = len(availableFiles) - 1
 #print("This is a random file choice: ", fileChoice + 1)
 byteCodeToSend = createByteCode(0, 0, 0, fileChoice, 1)
 print("\nRequesting file '{}'".format(availableFiles[fileChoice]))
@@ -65,6 +69,7 @@ while True:
         file = open(r"../endFiles/{}".format(availableFiles[receivedfileNameNum]), "wb")
         finalFileData = finalFileInfo[1]
         file.write(finalFileData)
+        print("written")
         file.close()
         print("Received the file: '{}'".format(availableFiles[finalFileInfo[0]]))
         receivedFiles = []
