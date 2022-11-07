@@ -1,3 +1,4 @@
+# CODE WRITTEN BY LAURA GOLEC FOR CSU33031 ASSIGNMENT 1
 from commonFunctions import *
 
 localIP = "127.0.0.1"
@@ -77,7 +78,7 @@ while True:
     if receivedMessageCode == 2:
         currentClient = findClient(header)
         # receives packets from worker
-        stopAndWaitResults = stopAndWaitARQReceiver(UDPIngressSocket, bytesAddressPair)
+        stopAndWaitResults = stopAndWaitARQReceiver(UDPIngressSocket)
         receivedPackets = stopAndWaitResults[0]
         receivedRequests = stopAndWaitResults[1]
         # if requests received during arq, adds them to queue

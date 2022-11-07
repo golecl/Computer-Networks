@@ -1,5 +1,5 @@
+# CODE WRITTEN BY LAURA GOLEC FOR CSU33031 ASSIGNMENT 1
 from commonFunctions import *
-#from listOfFiles import availableFiles
 
 # input the file index to be partitioned and the client it is meant to be sent to
 # returns an array of the bytes that need to be sent with the header included

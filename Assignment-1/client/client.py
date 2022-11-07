@@ -1,3 +1,5 @@
+# CODE WRITTEN BY LAURA GOLEC FOR CSU33031 ASSIGNMENT 1
+
 from commonFunctions import *
 
 # takes in received partitions and reassembles it
@@ -18,7 +20,7 @@ UDPClientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
 
 # send request to Ingress using created UDP socket
 fileChoice = randrange(len(availableFiles)) # sends request for random file
-# fileChoice = len(availableFiles) - 1      # sends request for last file, used mostly for debugging
+#fileChoice = len(availableFiles) - 1      # sends request for last file, used mostly for debugging
 headerToSend = createHeader(0, 0, 0, fileChoice, 1)
 print("Requesting file '{}'".format(availableFiles[fileChoice]))
 UDPClientSocket.sendto(headerToSend, IngressAddressPort)
@@ -38,7 +40,7 @@ while True:
 
     # if confirmation from ingress is received
     if receivedMessageCode == 2:
-        receivedFiles = stopAndWaitARQReceiver(UDPClientSocket, bytesReceivedFromIngress)[0]
+        receivedFiles = stopAndWaitARQReceiver(UDPClientSocket)[0]
         finalFileInfo = rebuildFile(receivedFiles)
         file = open(r"../endFiles/{}".format(availableFiles[receivedfileNameNum]), "wb")
         finalFileData = finalFileInfo[1]

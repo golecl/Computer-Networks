@@ -1,3 +1,4 @@
+# CODE WRITTEN BY LAURA GOLEC FOR CSU33031 ASSIGNMENT 1
 # imports all needed imports for all other files
 from random import randrange
 import socket
@@ -42,7 +43,7 @@ lastByte = 1
 totalHeaderBytes = codeBytes + clientBytes + partNumBytes + fileNameBytes + lastByte
 maxDataSize = bufferSize - totalHeaderBytes - 10
 # sets the timeout for all transmission
-timeout = 3
+timeout = 0.01
 
 # creates the header used to identify the action, client, current file part, and total file parts
 def createHeader(messageCode, client, partNumber, fileNames, lastFile):
@@ -125,7 +126,7 @@ def removeHeader(message):
 
 # ~~~~~~~~~~~~~~~ sender ARQ subsection ~~~~~~~~~~~~~~~~~~~~
 
-# listens for ACKs and NACKs and returns the received packet/ received requests
+# listens for ACKs and returns the received packet/ received requests
 def listenForACK(socketName):
     socketName.settimeout(timeout)
     receivedRequests = []
@@ -145,10 +146,6 @@ def listenForACK(socketName):
         # if ACK received return 1
         if operation == 3:
             resultPair[0] = 1
-            return resultPair
-        # if NACK received, return 0
-        if operation == 4:
-            resultPair[0] = 0
             return resultPair
 
 # takes in sender socket, the address port of the reciever and the packets to send
@@ -183,48 +180,38 @@ def stopAndWaitARQSender(senderSocket, addressPort, allPacketPartitions):
 # listens for any received packets, returns the packets and requests
 # also sends ACK for any received packet
 def receiveFiles(receiverSocket, counter):
-    receiverSocket.settimeout(timeout*2)
     returnPair = [0]*3
     receivedRequests = []
     while True:
-        # try to receive packets
-        try:
-            receivedPair = receiverSocket.recvfrom(bufferSize)
-            packet = receivedPair[0]
-            address = receivedPair[1]
-            packetNumber = findPartNum(packet)
-            operation = findCode(packet)
-            # if socket receives new request while listening for packets
-            if operation == 0:
-                receivedRequests.append(receivedPair)
-                returnPair[2] = receivedRequests
-            elif operation == 2:
-                if packetNumber == counter:
-                    # create ACK and send it 
-                    bytesToSend = createHeader(3, findClient(packet), findPartNum(packet), 0, 0)
-                    receiverSocket.sendto(bytesToSend, address)
-                    returnPair[1] = packet
-                    if findLastFile(packet) == 0:
-                        returnPair[0] = 1
-                        return returnPair
-                    else:
-                        returnPair[0] = -1
-                        return returnPair
-        # if packet not received, do not move the window
-        except Exception:
-            returnPair[0] = 0
-            returnPair[1] = 0
-            return returnPair
+        # receive packets
+        receivedPair = receiverSocket.recvfrom(bufferSize)
+        packet = receivedPair[0]
+        address = receivedPair[1]
+        packetNumber = findPartNum(packet)
+        operation = findCode(packet)
+        # if socket receives new request while listening for packets
+        if operation == 0:
+            receivedRequests.append(receivedPair)
+            returnPair[2] = receivedRequests
+        elif operation == 2:
+            if packetNumber == counter:
+                # create ACK and send it 
+                bytesToSend = createHeader(3, findClient(packet), findPartNum(packet), 0, 0)
+                receiverSocket.sendto(bytesToSend, address)
+                returnPair[1] = packet
+                if findLastFile(packet) == 0:
+                    returnPair[0] = 1
+                    return returnPair
+                else:
+                    returnPair[0] = -1
+                    return returnPair
 
 # takes in receiver socket along with the first packet, returns received packets and requests
-def stopAndWaitARQReceiver(receiverSocket, firstPacket):
+def stopAndWaitARQReceiver(receiverSocket):
     counter = 0
     totalReceivedPackets = []
     packetsAndRequests = [[0]]*2
     receivedRequests = []
-    address = firstPacket[1]
-    clientNumber = findClient(firstPacket[0])
-    fileNameNum = findfileNameNum(firstPacket[0])
     mostRecentPacket = 0
     received = 0
     while True:
@@ -238,10 +225,6 @@ def stopAndWaitARQReceiver(receiverSocket, firstPacket):
         if received == -1:
             totalReceivedPackets.append(mostRecentPacket)
             break
-        # if not received, send NACK
-        if received == 0:
-            bytesToSend = createHeader(4, clientNumber, counter, fileNameNum, 0)
-            receiverSocket.sendto(bytesToSend, address)
         # if received, add to list and move on to next packet
         if received == 1:
             counter += 1
