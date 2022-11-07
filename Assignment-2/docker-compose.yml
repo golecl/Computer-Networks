@@ -1,0 +1,47 @@
+# CODE WRITTEN BY LAURA GOLEC FOR CSU33031 ASSIGNMENT 2
+
+version: '2'
+services:
+  endpoint:
+    build:
+      dockerfile:
+        endpoint/Dockerfile
+    networks:
+      cloud:
+        ipv4_address: 172.30.16.4
+    
+  forwarder1:
+    build:
+      dockerfile:
+        forwarder/Dockerfile
+    networks:
+      home:
+        ipv4_address: 192.168.17.34
+      cloud:
+        ipv4_address: 172.30.16.234
+    depends_on:
+      - endpoint
+
+  user:
+    build:
+      dockerfile:
+        user/Dockerfile
+    networks:
+      home:
+        ipv4_address: 192.168.17.2
+    depends_on:
+      - endpoint
+
+networks:
+  home:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 192.168.17.0/24
+  cloud:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.30.0.0/16
