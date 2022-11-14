@@ -3,6 +3,7 @@
 FROM python:latest
 
 ADD forwarder/forwarder.py /forwarder/
+COPY common.py/ /forwarder/
 
 WORKDIR /forwarder/
 

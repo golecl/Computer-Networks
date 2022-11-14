@@ -3,9 +3,12 @@
 FROM python:latest
 
 ADD controller/controller.py /controller/
+COPY common.py/ /controller/
 
 WORKDIR /controller/
 
 EXPOSE 54321/udp
+
+RUN pip install Dijkstar
 
 ENTRYPOINT ["python3", "-u", "controller.py"]

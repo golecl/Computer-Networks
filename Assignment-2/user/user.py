@@ -3,7 +3,7 @@
 import socket
 
 localIP = ""
-localPort = 49668
+localPort = 54321
 UDPUserSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
 UDPUserSocket.bind((localIP, localPort))
 

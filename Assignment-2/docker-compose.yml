@@ -6,19 +6,36 @@ services:
     build:
       dockerfile:
         endpoint/Dockerfile
+    command: ["FFFFFF", "172.30.0.11", "172.30.16.4"]
     networks:
       cloud:
         ipv4_address: 172.30.16.4
+    depends_on:
+      - controller
     
   forwarder1:
     build:
       dockerfile:
         forwarder/Dockerfile
+    command: ["AABBCC", "192.168.17.11", "192.168.17.34", "129.144.50.22"]
     networks:
       home:
         ipv4_address: 192.168.17.34
+      isp:
+        ipv4_address: 129.144.50.22
+    depends_on:
+      - endpoint
+
+  forwarder2:
+    build:
+      dockerfile:
+        forwarder/Dockerfile
+    command: ["BBCCDD", "129.144.50.11", "129.144.50.12", "172.30.0.254"]
+    networks:
+      isp:
+        ipv4_address: 129.144.50.12
       cloud:
-        ipv4_address: 172.30.16.234
+        ipv4_address: 172.30.0.254
     depends_on:
       - endpoint
 
@@ -26,11 +43,33 @@ services:
     build:
       dockerfile:
         user/Dockerfile
-    networks:
+    command: ["AAAAAA", "192.168.17.11", "192.168.17.2"]
+    networks: 
       home:
         ipv4_address: 192.168.17.2
     depends_on:
       - endpoint
+      - forwarder1
+      - forwarder2
+
+  controller:
+    build:
+      dockerfile:
+        controller/Dockerfile
+    command: ["C0C0C0", "192.168.17.11", "172.30.0.11", "129.144.50.11"]
+    networks:
+      home:
+        ipv4_address: 192.168.17.11
+      cloud:
+        ipv4_address: 172.30.0.11
+      isp:
+        ipv4_address: 129.144.50.11
+
+  tcpdump:
+    image: kaazing/tcpdump
+    network_mode: "host"
+    volumes:
+      - ./tcpdump:/tcpdump
 
 networks:
   home:
@@ -45,3 +84,9 @@ networks:
       driver: default
       config:
         - subnet: 172.30.0.0/16
+  isp:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 129.144.50.0/16

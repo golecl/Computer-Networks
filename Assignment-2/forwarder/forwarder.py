@@ -1,32 +1,44 @@
 # CODE WRITTEN BY LAURA GOLEC FOR CSU33031 ASSIGNMENT 2
+from common import *
 
-import socket
+id = bytes.fromhex(sys.argv[1])
+controllerAddress = (sys.argv[2], 54321)
+sockets = initialiseSockets(sys.argv, 3)
+        
+def declare(sock):
+    declaration = id
+    sock.sendto(declaration, controllerAddress)
 
-localIP = ""
-localPort = 54321
-UDPForwarderSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-UDPForwarderSocket.bind((localIP, localPort))
+# returns the final destination id in bytes
+def getFinalId(bytesMessage):
+    finalId = bytesMessage[3:7]
+    return finalId
 
-bufferSize = 65507
+# sends the forwarders id and the final destination id to the controller
+# controller sends back the next ip address
+def getForwardingAddress(sock, bytesMessage):
+    finalId = getFinalId(bytesMessage)
+    header = id + finalId
+    sock.sendto(header, controllerAddress)
+    nextAddress = sock.recvfrom(bufferSize)
+    return nextAddress
 
-nextAddressPort = ("172.30.16.4", 54321)
+
+def listenAndForward(sock):
+    print(sock)
+    while True:
+        receivedBytes = sock.recvfrom(bufferSize)
+        message = receivedBytes[0]
+        address = receivedBytes[1]
+        print("The client wants to send this message: {}".format(message))
+        print("The clients ip is: {}".format(address))
+        nextAddress = getForwardingAddress(sock, message)
+        sock.sendto(message, nextAddress)
+        continue
 
 print("Forwarder is up")
-
-# wait for messages from users
-while True:
-    msgAddressPair = UDPForwarderSocket.recvfrom(bufferSize)
-    receivedMessage = msgAddressPair[0]
-    address = msgAddressPair[1]
-    
-    message = "The user sent this: {}".format(receivedMessage)
-    userIP = "The users address is: {}".format(address)
-    UDPForwarderSocket.sendto(receivedMessage, nextAddressPort)
-    
-    print(message)
-    print(userIP)
-    
-    # send confirmation to the user
-    userFeedback = "Message successfully forwarded"
-    userFeedback = str.encode(userFeedback)
-    UDPForwarderSocket.sendto(userFeedback, address)
+print(sockets)
+for sock in sockets:
+    declare(sock)
+    process = multiprocessing.Process(target=listenAndForward,args=[sock])
+    process.start()
