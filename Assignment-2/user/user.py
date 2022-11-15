@@ -11,14 +11,13 @@ sockets = initialiseSockets(sys.argv, 5)
     
 for sock in sockets:
     declare(sock, controllerAddress, id)
-    print("declared!", id)
 
 
 
 print("User is attempting to send")
 
 header = id + destinationId
-message = "The user sent this message!"
+message = "User with id {} sent this!".format(id)
 bytesMessage = str.encode(message)
 bytesMessage = header + bytesMessage
 sockets[0].sendto(bytesMessage, forwarderAddressPort)

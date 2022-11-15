@@ -21,13 +21,11 @@ def getForwardingAddress(sock, bytesMessage):
     return nextAddress
 
 def listenAndForward(sock):
-    #print(sock)
     while True:
         receivedBytes = sock.recvfrom(bufferSize)
         message = receivedBytes[0]
         address = receivedBytes[1]
         print("The client wants to send this message: {}".format(message))
-        print("The clients ip is: {}".format(address))
         destination = getFinalId(message)
         if id == destination:
             break

@@ -22,8 +22,6 @@ def addEdge(networkGraph, node1, node2):
     networkGraph[node2] = currentEdges
     
 def findPath(networkGraph, start, end):
-    print("This is the starting node: ", start)
-    print("This is the ending node: ", end)
     explored = []
     queue = [[start]]
     while queue:
@@ -71,9 +69,7 @@ def declarationHandler(forwardingTable, id, address, graph):
 def findNextDestination(idDest, graph):
     id = idDest[0:3]
     destination = idDest[3:6]
-    print("This is the graph ", graph)
     path = findPath(graph, id, destination)
-    print("This is the path ", path)
     nextIp = findConnectingIp(path[0], path[1])
     return nextIp
     
@@ -83,7 +79,6 @@ def listenAndRespond(sock, forwardingTable, forwardingTableMutex, graph):
         receivedBytes = sock.recvfrom(bufferSize)
         message = receivedBytes[0]
         address = receivedBytes[1]
-        print(message)
         if len(message) == 3:
             forwardingTableMutex.acquire()
             declarationHandler(forwardingTable, message, address, graph)
@@ -91,11 +86,22 @@ def listenAndRespond(sock, forwardingTable, forwardingTableMutex, graph):
         else:
             nextIp = findNextDestination(message, graph)
             nextIpBytes = str.encode(nextIp)
-            print("This is the next ip ", nextIpBytes)
             sock.sendto(nextIpBytes, address)
                 
 
 for sock in range(0, len(sockets) - 1):
+    try:
+        process = multiprocessing.Process(target=listenAndRespond,args=[sockets[sock], forwardingTable, forwardingTableMutex, graph])
+        process.start()
+    except:
+        time.sleep(0.001)
+        process = multiprocessing.Process(target=listenAndRespond,args=[sockets[sock], forwardingTable, forwardingTableMutex, graph])
+        process.start()
+        print("Process killed")
+try:
+    listenAndRespond(sockets[len(sockets) - 1], forwardingTable, forwardingTableMutex, graph)
+except:
+    time.sleep(0.001)
     process = multiprocessing.Process(target=listenAndRespond,args=[sockets[sock], forwardingTable, forwardingTableMutex, graph])
     process.start()
-listenAndRespond(sockets[len(sockets) - 1], forwardingTable, forwardingTableMutex, graph)
+    print("Process killed")

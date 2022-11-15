@@ -1,6 +1,7 @@
 import socket
 import sys
 import multiprocessing
+import time
 
 bufferSize = 65507
 
@@ -37,5 +38,5 @@ def declare(sock, controllerAddress, id):
     
 # returns the final destination id in bytes
 def getFinalId(bytesMessage):
-    finalId = bytesMessage[3:7]
+    finalId = bytesMessage[3:6]
     return finalId
