@@ -3,6 +3,7 @@
 FROM python:latest
 
 ADD endpoint/endpoint.py /endpoint/
+COPY common.py/ /endpoint/
 
 WORKDIR /endpoint/
 

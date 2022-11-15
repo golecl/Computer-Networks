@@ -3,6 +3,7 @@
 FROM python:latest
 
 ADD user/user.py /user/
+COPY common.py/ /user/
 
 WORKDIR /user/
 

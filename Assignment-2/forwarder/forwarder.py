@@ -5,19 +5,7 @@ id = bytes.fromhex(sys.argv[1])
 controllerAddress = []
 controllerAddress.append(sys.argv[2])
 controllerAddress.append(sys.argv[3])
-sockets = initialiseSockets(sys.argv, 4)
-        
-def getControllerAddress(ownIp):
-    for address in controllerAddress:
-        if compareSubnet(ownIp, address):
-            controllerSocket = (address, 54321)
-    return controllerSocket
-        
-def declare(sock):
-    declaration = id
-    currentIp = sock.getsockname()[0]
-    controllerSocket = getControllerAddress(currentIp)
-    sock.sendto(declaration, controllerSocket)
+sockets = initialiseSockets(sys.argv, 4)        
 
 # returns the final destination id in bytes
 def getFinalId(bytesMessage):
@@ -30,11 +18,12 @@ def getForwardingAddress(sock, bytesMessage):
     finalId = getFinalId(bytesMessage)
     header = id + finalId
     currentIp = sock.getsockname()[0]
-    controllerSocket = getControllerAddress(currentIp)
+    controllerSocket = getControllerAddress(currentIp, controllerAddress)
     sock.sendto(header, controllerSocket)
-    nextAddress = sock.recvfrom(bufferSize)
+    nextAddressBytes = sock.recvfrom(bufferSize)[0]
+    nextAddressString = nextAddressBytes.decode()
+    nextAddress = (nextAddressString, 54321)
     return nextAddress
-
 
 def listenAndForward(sock):
     #print(sock)
@@ -44,12 +33,16 @@ def listenAndForward(sock):
         address = receivedBytes[1]
         print("The client wants to send this message: {}".format(message))
         print("The clients ip is: {}".format(address))
+        destination = getFinalId(message)
+        if id == destination:
+            break
         nextAddress = getForwardingAddress(sock, message)
         sock.sendto(message, nextAddress)
         continue
+    print("Reached destination!")
 
 print("Forwarder is up")
 for sock in sockets:
-    declare(sock)
+    declare(sock, controllerAddress, id)
     process = multiprocessing.Process(target=listenAndForward,args=[sock])
     process.start()
