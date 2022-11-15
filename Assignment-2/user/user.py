@@ -22,15 +22,15 @@ bytesMessage = str.encode(message)
 bytesMessage = header + bytesMessage
 sockets[0].sendto(bytesMessage, forwarderAddressPort)
 
-msgFromForwarder = sockets[0].recvfrom(bufferSize)
-forwarderConfirmation = msgFromForwarder[0]
-print("Forwarder Message: {}".format(forwarderConfirmation))
+#msgFromForwarder = sockets[0].recvfrom(bufferSize)
+#forwarderConfirmation = msgFromForwarder[0]
+#print("Forwarder Message: {}".format(forwarderConfirmation))
 
 while True:
     receivedBytes = sockets[0].recvfrom(bufferSize)
     message = receivedBytes[0]
     if id == getFinalId(message):
-        print("Woo! received the message!!")
+        print("Woo! received the message!!", message)
 
 
 

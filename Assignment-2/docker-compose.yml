@@ -25,6 +25,7 @@ services:
         ipv4_address: 129.144.50.22
     depends_on:
       - endpoint
+      - controller
 
   forwarder2:
     build:
@@ -38,6 +39,7 @@ services:
         ipv4_address: 172.30.0.254
     depends_on:
       - endpoint
+      - controller
 
   forwarder3:
     build:
@@ -51,6 +53,7 @@ services:
         ipv4_address: 172.30.0.32
     depends_on:
       - endpoint
+      - controller
 
   user1:
     build:
@@ -100,6 +103,7 @@ services:
     network_mode: "host"
     volumes:
       - ./tcpdump:/tcpdump
+    command: ["-i", "any", "udp", "-w", "tcpdump/tcpdump.pcap"]
 
 networks:
   home:
