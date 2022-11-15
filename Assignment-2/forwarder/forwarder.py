@@ -2,12 +2,22 @@
 from common import *
 
 id = bytes.fromhex(sys.argv[1])
-controllerAddress = (sys.argv[2], 54321)
-sockets = initialiseSockets(sys.argv, 3)
+controllerAddress = []
+controllerAddress.append(sys.argv[2])
+controllerAddress.append(sys.argv[3])
+sockets = initialiseSockets(sys.argv, 4)
+        
+def getControllerAddress(ownIp):
+    for address in controllerAddress:
+        if compareSubnet(ownIp, address):
+            controllerSocket = (address, 54321)
+    return controllerSocket
         
 def declare(sock):
     declaration = id
-    sock.sendto(declaration, controllerAddress)
+    currentIp = sock.getsockname()[0]
+    controllerSocket = getControllerAddress(currentIp)
+    sock.sendto(declaration, controllerSocket)
 
 # returns the final destination id in bytes
 def getFinalId(bytesMessage):
@@ -19,13 +29,15 @@ def getFinalId(bytesMessage):
 def getForwardingAddress(sock, bytesMessage):
     finalId = getFinalId(bytesMessage)
     header = id + finalId
-    sock.sendto(header, controllerAddress)
+    currentIp = sock.getsockname()[0]
+    controllerSocket = getControllerAddress(currentIp)
+    sock.sendto(header, controllerSocket)
     nextAddress = sock.recvfrom(bufferSize)
     return nextAddress
 
 
 def listenAndForward(sock):
-    print(sock)
+    #print(sock)
     while True:
         receivedBytes = sock.recvfrom(bufferSize)
         message = receivedBytes[0]
@@ -37,7 +49,6 @@ def listenAndForward(sock):
         continue
 
 print("Forwarder is up")
-print(sockets)
 for sock in sockets:
     declare(sock)
     process = multiprocessing.Process(target=listenAndForward,args=[sock])

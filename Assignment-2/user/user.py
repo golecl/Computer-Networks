@@ -13,8 +13,10 @@ forwarderAddressPort = ("192.168.17.34", 54321)
 
 print("User is attempting to send")
 
+header = bytes.fromhex('AAAAAABBCCDD') 
 message = "The user sent this message!"
 bytesMessage = str.encode(message)
+bytesMessage = header + bytesMessage
 UDPUserSocket.sendto(bytesMessage, forwarderAddressPort)
 
 msgFromForwarder = UDPUserSocket.recvfrom(bufferSize)

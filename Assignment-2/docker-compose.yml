@@ -17,7 +17,7 @@ services:
     build:
       dockerfile:
         forwarder/Dockerfile
-    command: ["AABBCC", "192.168.17.11", "192.168.17.34", "129.144.50.22"]
+    command: ["AABBCC", "192.168.17.11", "129.144.50.11", "192.168.17.34", "129.144.50.22"]
     networks:
       home:
         ipv4_address: 192.168.17.34
@@ -30,7 +30,7 @@ services:
     build:
       dockerfile:
         forwarder/Dockerfile
-    command: ["BBCCDD", "129.144.50.11", "129.144.50.12", "172.30.0.254"]
+    command: ["BBCCDD", "129.144.50.11", "172.30.0.11", "129.144.50.12", "172.30.0.254"]
     networks:
       isp:
         ipv4_address: 129.144.50.12
