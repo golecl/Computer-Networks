@@ -8,7 +8,6 @@ def initialiseSockets(arguments, listStart):
     ipAddresses = []
     for argument in range(listStart, len(arguments)):
         ipAddresses.append(arguments[argument])
-        localPort = 54321
     sockets = []
     # creates the sockets necessary
     for ip in ipAddresses:
@@ -35,3 +34,8 @@ def declare(sock, controllerAddress, id):
     currentIp = sock.getsockname()[0]
     controllerSocket = getControllerAddress(currentIp, controllerAddress)
     sock.sendto(declaration, controllerSocket)
+    
+# returns the final destination id in bytes
+def getFinalId(bytesMessage):
+    finalId = bytesMessage[3:7]
+    return finalId

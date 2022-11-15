@@ -7,11 +7,6 @@ controllerAddress.append(sys.argv[2])
 controllerAddress.append(sys.argv[3])
 sockets = initialiseSockets(sys.argv, 4)        
 
-# returns the final destination id in bytes
-def getFinalId(bytesMessage):
-    finalId = bytesMessage[3:7]
-    return finalId
-
 # sends the forwarders id and the final destination id to the controller
 # controller sends back the next ip address
 def getForwardingAddress(sock, bytesMessage):

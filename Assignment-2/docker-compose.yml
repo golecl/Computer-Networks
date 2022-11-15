@@ -39,11 +39,24 @@ services:
     depends_on:
       - endpoint
 
-  user:
+  forwarder3:
+    build:
+      dockerfile:
+        forwarder/Dockerfile
+    command: ["CCDDEE", "133.111.20.11", "172.30.0.11", "133.111.20.9", "172.30.0.32"]
+    networks:
+      home2:
+        ipv4_address: 133.111.20.9
+      cloud:
+        ipv4_address: 172.30.0.32
+    depends_on:
+      - endpoint
+
+  user1:
     build:
       dockerfile:
         user/Dockerfile
-    command: ["AAAAAA", "192.168.17.11", "192.168.17.2"]
+    command: ["AAAAAA", "FFFFFF", "192.168.17.34", "192.168.17.11", "192.168.17.2"]
     networks: 
       home:
         ipv4_address: 192.168.17.2
@@ -51,12 +64,27 @@ services:
       - endpoint
       - forwarder1
       - forwarder2
+      - forwarder3
+
+  user2:
+    build:
+      dockerfile:
+        user/Dockerfile
+    command: ["AAAAAB", "AAAAAA", "133.111.20.9", "133.111.20.11", "133.111.20.3"]
+    networks: 
+      home2:
+        ipv4_address: 133.111.20.3
+    depends_on:
+      - endpoint
+      - forwarder1
+      - forwarder2
+      - forwarder3
 
   controller:
     build:
       dockerfile:
         controller/Dockerfile
-    command: ["C0C0C0", "192.168.17.11", "172.30.0.11", "129.144.50.11"]
+    command: ["C0C0C0", "192.168.17.11", "172.30.0.11", "129.144.50.11", "133.111.20.11"]
     networks:
       home:
         ipv4_address: 192.168.17.11
@@ -64,6 +92,8 @@ services:
         ipv4_address: 172.30.0.11
       isp:
         ipv4_address: 129.144.50.11
+      home2:
+        ipv4_address: 133.111.20.11
 
   tcpdump:
     image: kaazing/tcpdump
@@ -90,3 +120,9 @@ networks:
       driver: default
       config:
         - subnet: 129.144.50.0/16
+  home2:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 133.111.20.0/16

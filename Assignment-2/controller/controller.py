@@ -83,6 +83,7 @@ def listenAndRespond(sock, forwardingTable, forwardingTableMutex, graph):
         receivedBytes = sock.recvfrom(bufferSize)
         message = receivedBytes[0]
         address = receivedBytes[1]
+        print(message)
         if len(message) == 3:
             forwardingTableMutex.acquire()
             declarationHandler(forwardingTable, message, address, graph)
@@ -97,4 +98,4 @@ def listenAndRespond(sock, forwardingTable, forwardingTableMutex, graph):
 for sock in range(0, len(sockets) - 1):
     process = multiprocessing.Process(target=listenAndRespond,args=[sockets[sock], forwardingTable, forwardingTableMutex, graph])
     process.start()
-listenAndRespond(sockets[len(sockets)-1], forwardingTable, forwardingTableMutex, graph)
+listenAndRespond(sockets[len(sockets) - 1], forwardingTable, forwardingTableMutex, graph)

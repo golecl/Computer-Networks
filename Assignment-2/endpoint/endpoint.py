@@ -1,6 +1,5 @@
 # CODE WRITTEN BY LAURA GOLEC FOR CSU33031 ASSIGNMENT 2
 
-import socket
 from common import *
 
 id = bytes.fromhex(sys.argv[1])
