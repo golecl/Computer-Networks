@@ -8,29 +8,26 @@ controllerAddress = []
 forwarderAddressPort = (sys.argv[3], 54321)
 controllerAddress.append(sys.argv[4])
 sockets = initialiseSockets(sys.argv, 5)  
-    
+
+time.sleep(4)
 for sock in sockets:
     declare(sock, controllerAddress, id)
+time.sleep(1)
 
 
-
-print("User is attempting to send")
+print("User {} is attempting to send".format(id.hex().upper()))
 
 header = id + destinationId
-message = "User with id {} sent this!".format(id)
+message = " User with id {} sent this!".format(id)
 bytesMessage = str.encode(message)
 bytesMessage = header + bytesMessage
 sockets[0].sendto(bytesMessage, forwarderAddressPort)
-
-#msgFromForwarder = sockets[0].recvfrom(bufferSize)
-#forwarderConfirmation = msgFromForwarder[0]
-#print("Forwarder Message: {}".format(forwarderConfirmation))
 
 while True:
     receivedBytes = sockets[0].recvfrom(bufferSize)
     message = receivedBytes[0]
     if id == getFinalId(message):
-        print("Woo! received the message!!", message)
+        print("Received this message from user {}:".format(message[0:3].hex().upper()), message)
 
 
 

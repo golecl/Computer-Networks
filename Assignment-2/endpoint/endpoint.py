@@ -6,6 +6,7 @@ id = bytes.fromhex(sys.argv[1])
 controllerAddress = []
 controllerAddress.append(sys.argv[2])
 sockets = initialiseSockets(sys.argv, 3)  
+time.sleep(3.5)
     
 for sock in sockets:
     declare(sock, controllerAddress, id)
@@ -17,6 +18,6 @@ while True:
     receivedMessage = msgAddressPair[0]
     address = msgAddressPair[1]
     
-    message = "The user sent this: {}".format(receivedMessage)
+    message = "The user {} sent this: {}".format(receivedMessage[0:3].hex().upper(), receivedMessage)
     
     print(message)

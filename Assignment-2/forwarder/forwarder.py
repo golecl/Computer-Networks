@@ -5,7 +5,8 @@ id = bytes.fromhex(sys.argv[1])
 controllerAddress = []
 controllerAddress.append(sys.argv[2])
 controllerAddress.append(sys.argv[3])
-sockets = initialiseSockets(sys.argv, 4)        
+sockets = initialiseSockets(sys.argv, 4)    
+time.sleep(3)    
 
 # sends the forwarders id and the final destination id to the controller
 # controller sends back the next ip address
@@ -25,7 +26,7 @@ def listenAndForward(sock):
         receivedBytes = sock.recvfrom(bufferSize)
         message = receivedBytes[0]
         address = receivedBytes[1]
-        print("The client wants to send this message: {}".format(message))
+        print("The user {} wants to send this message: {}".format(message[0:3].hex().upper(), message))
         destination = getFinalId(message)
         if id == destination:
             break
@@ -34,7 +35,7 @@ def listenAndForward(sock):
         continue
     print("Reached destination!")
 
-print("Forwarder is up")
+print("Forwarder {} is up".format(id.hex().upper()))
 for sock in sockets:
     declare(sock, controllerAddress, id)
     process = multiprocessing.Process(target=listenAndForward,args=[sock])

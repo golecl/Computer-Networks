@@ -22,22 +22,24 @@ def addEdge(networkGraph, node1, node2):
     networkGraph[node2] = currentEdges
     
 def findPath(networkGraph, start, end):
-    explored = []
-    queue = [[start]]
-    while queue:
-        path = queue.pop(0)
-        node = path[-1]
-        if node not in explored:
-            neighbours = networkGraph[node]
-            for neighbour in neighbours:
-                new_path = list(path)
-                new_path.append(neighbour)
-                queue.append(new_path)
-                if neighbour == end:
-                    return new_path
-            explored.append(node)
-    print("So sorry, but a connecting path doesn't exist :(")
-    return
+    try:
+        explored = []
+        queue = [[start]]
+        while queue:
+            path = queue.pop(0)
+            node = path[-1]
+            if node not in explored:
+                neighbours = networkGraph[node]
+                for neighbour in neighbours:
+                    new_path = list(path)
+                    new_path.append(neighbour)
+                    queue.append(new_path)
+                    if neighbour == end:
+                        return new_path
+                explored.append(node)
+    except:
+        print("So sorry, but a connecting path doesn't exist :(")
+        return
 
 def findConnectingIp(start, end):
     localForwardingTable = dict(forwardingTable)
@@ -75,33 +77,38 @@ def findNextDestination(idDest, graph):
     
 
 def listenAndRespond(sock, forwardingTable, forwardingTableMutex, graph):
-    while True:
-        receivedBytes = sock.recvfrom(bufferSize)
-        message = receivedBytes[0]
-        address = receivedBytes[1]
-        if len(message) == 3:
-            forwardingTableMutex.acquire()
-            declarationHandler(forwardingTable, message, address, graph)
-            forwardingTableMutex.release()
-        else:
-            nextIp = findNextDestination(message, graph)
-            nextIpBytes = str.encode(nextIp)
-            sock.sendto(nextIpBytes, address)
+    try:
+        while True:
+            receivedBytes = sock.recvfrom(bufferSize)
+            message = receivedBytes[0]
+            address = receivedBytes[1]
+            if len(message) == 3:
+                forwardingTableMutex.acquire()
+                declarationHandler(forwardingTable, message, address, graph)
+                forwardingTableMutex.release()
+            else:
+                nextIp = findNextDestination(message, graph)
+                nextIpBytes = str.encode(nextIp)
+                sock.sendto(nextIpBytes, address)
+    except:
+        print("Sorry, encountered an error, please try again")
                 
 
 for sock in range(0, len(sockets) - 1):
     try:
+        time.sleep(0.1)
         process = multiprocessing.Process(target=listenAndRespond,args=[sockets[sock], forwardingTable, forwardingTableMutex, graph])
         process.start()
     except:
-        time.sleep(0.001)
+        time.sleep(0.1)
         process = multiprocessing.Process(target=listenAndRespond,args=[sockets[sock], forwardingTable, forwardingTableMutex, graph])
         process.start()
         print("Process killed")
 try:
+    time.sleep(0.1)
     listenAndRespond(sockets[len(sockets) - 1], forwardingTable, forwardingTableMutex, graph)
 except:
-    time.sleep(0.001)
+    time.sleep(0.1)
     process = multiprocessing.Process(target=listenAndRespond,args=[sockets[sock], forwardingTable, forwardingTableMutex, graph])
     process.start()
     print("Process killed")
