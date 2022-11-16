@@ -12,12 +12,6 @@ CONTROLLER SIDE:
 node: elementid
 edge: connected to every element id that shares the same subnet
 
-use dijkstra to find the node order
+use path finding to find the node order
 then use the dictionary to find the subnet that those nodes share,
 in turn this will allow you to state which ip to use
-
-
-DIJKSTRAS ALGORITHM:
-how to find shortest path:
-
-get list of nodes connected to 

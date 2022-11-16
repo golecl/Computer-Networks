@@ -2,6 +2,11 @@
 
 version: '2'
 services:
+
+# This is the endpoint, or as stated in the brief, the cloud server
+# It is only connected to one network
+# The arguments passed into it are as follows:
+# Own Element ID, Controller IP address, Own IP address
   endpoint:
     build:
       dockerfile:
@@ -13,6 +18,10 @@ services:
     depends_on:
       - controller
     
+# Below are all the forwarders, they are connected to two networks each (A, and B)
+# The arguments passed into them are as follows:
+# Own Element ID, Controller IP for network A, Controller IP for network B, Own IP address network A, Own IP address network B
+# The order of A and B does not matter   
   forwarder1:
     build:
       dockerfile:
@@ -73,7 +82,7 @@ services:
     build:
       dockerfile:
         forwarder/Dockerfile
-    command: ["EEEEFF", "129.144.50.11", "123.134.43.11", "123.134.43.9", "129.144.50.32"]
+    command: ["EEEEFF", "123.134.43.11", "129.144.50.11", "123.134.43.9", "129.144.50.32"]
     networks:
       isp:
         ipv4_address: 123.134.43.9
@@ -83,6 +92,9 @@ services:
       - endpoint
       - controller
 
+# Below are all the users, they are only connected to their home networks
+# The arguments passed into them follow this template:
+# Own Element ID, Destination Element ID, IP address of gateway, IP address of controller, Own IP address
   user1:
     build:
       dockerfile:
@@ -132,11 +144,14 @@ services:
       - forwarder4
       - forwarder5
 
+# The controller has IP addresses/sockets in every network as all elements need to communicate with it at least once
+# The arguments passed into it are as follows:
+# All of its own IPs for all the networks it has sockets in
   controller:
     build:
       dockerfile:
         controller/Dockerfile
-    command: ["C0C0C0", "192.168.17.11", "172.30.0.11", "129.144.50.11", "133.111.20.11", "167.120.87.11", "123.134.43.11"]
+    command: ["192.168.17.11", "172.30.0.11", "129.144.50.11", "133.111.20.11", "167.120.87.11", "123.134.43.11"]
     networks:
       home:
         ipv4_address: 192.168.17.11
@@ -151,6 +166,7 @@ services:
       isp:
         ipv4_address: 123.134.43.11
 
+# Used for capturing network traffic as pcap files
   tcpdump:
     image: kaazing/tcpdump
     network_mode: "host"
@@ -158,6 +174,8 @@ services:
       - ./tcpdump:/tcpdump
     command: ["-i", "any", "udp", "-w", "tcpdump/tcpdump.pcap"]
 
+# Sets up all of the networks that are used in the program
+# All are bridge networks with own subnets
 networks:
   home:
     driver: bridge
