@@ -14,26 +14,32 @@ time.sleep(3)
 # Sends the forwarders Element ID and the final destination ID to the controller
 # Controller sends back the next IP address
 def getForwardingAddress(sock, bytesMessage):
-    finalId = getFinalId(bytesMessage)
-    header = id + finalId
-    currentIp = sock.getsockname()[0]
-    controllerSocket = getControllerAddress(currentIp, controllerAddress)
-    sock.sendto(header, controllerSocket)
-    nextAddressBytes = sock.recvfrom(bufferSize)[0]
-    nextAddressString = nextAddressBytes.decode()
-    nextAddress = (nextAddressString, 54321)
-    return nextAddress
+    try:
+        finalId = getFinalId(bytesMessage)
+        header = id + finalId
+        currentIp = sock.getsockname()[0]
+        controllerSocket = getControllerAddress(currentIp, controllerAddress)
+        sock.sendto(header, controllerSocket)
+        nextAddressBytes = sock.recvfrom(bufferSize)[0]
+        nextAddressString = nextAddressBytes.decode()
+        nextAddress = (nextAddressString, 54321)
+        return nextAddress
+    except:
+        print("Sorry, error was encountered in the forwarder. Please try again.")
 
 # This function continuously waits for a message, it then asks the controller where it should
 # Send it to. It then sends it to that address from the appropriate socket. (It uses the compareSubnets
 # function to determine which socket it should send it to)
 def listenAndForward(sock):
-    while True:
-        receivedBytes = sock.recvfrom(bufferSize)
-        message = receivedBytes[0]
-        print("The user {} wants to send this message: {}".format(message[0:3].hex().upper(), message))
-        nextAddress = getForwardingAddress(sock, message)
-        sock.sendto(message, nextAddress)
+    try:
+        while True:
+            receivedBytes = sock.recvfrom(bufferSize)
+            message = receivedBytes[0]
+            print("The user {} wants to send this message: {}".format(message[0:3].hex().upper(), message))
+            nextAddress = getForwardingAddress(sock, message)
+            sock.sendto(message, nextAddress)
+    except:
+        print("")
 
 print("Forwarder {} is up".format(id.hex().upper()))
 
