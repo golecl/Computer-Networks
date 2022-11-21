@@ -11,6 +11,13 @@ controllerAddress.append(sys.argv[3])
 sockets = initialiseSockets(sys.argv, 4)    
 time.sleep(3)    
 
+# Returns the correct socket to send from when given the IP address to send to.
+def chooseSocket(listOfSockets, nextIpAddress):
+    for sock in listOfSockets:
+        socketsIP = sock.getsockname()[0]
+        if compareSubnet(socketsIP, nextIpAddress[0]):
+            return sock
+    return
 # Sends the forwarders Element ID and the final destination ID to the controller
 # Controller sends back the next IP address
 def getForwardingAddress(sock, bytesMessage):
@@ -37,7 +44,9 @@ def listenAndForward(sock):
             message = receivedBytes[0]
             print("The user {} wants to send this message: {}".format(message[0:3].hex().upper(), message))
             nextAddress = getForwardingAddress(sock, message)
-            sock.sendto(message, nextAddress)
+            correctSocket = chooseSocket(sockets, nextAddress)
+            print("Using socket with IP {} to send to {}\n".format(correctSocket.getsockname()[0], nextAddress[0]))
+            correctSocket.sendto(message, nextAddress)
     except:
         print("")
 
