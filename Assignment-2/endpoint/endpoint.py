@@ -19,8 +19,14 @@ for sock in sockets:
 print("UDP Endpoint up and listening")
 
 # This while loop awaits any messages, it then prints out the message and the user that sent it
+# Then it sends back a response to the user so that it knows it received the message!
 while True:
     msgAddressPair = sockets[0].recvfrom(bufferSize)
     receivedMessage = msgAddressPair[0]
+    address = msgAddressPair[1]
     message = "Message received at endpoint! The user {} sent this: {}".format(receivedMessage[0:3].hex().upper(), receivedMessage)
+    header = id + receivedMessage[0:3]
+    sendMessage = " Thank you user {}, message received at {}".format(receivedMessage[0:3], id)
+    sendMessage = header + str.encode(sendMessage)
+    sockets[0].sendto(sendMessage, address)
     print(message)
