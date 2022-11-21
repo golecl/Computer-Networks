@@ -45,6 +45,7 @@ def listenAndForward(sock):
             print("The user {} wants to send this message: {}".format(message[0:3].hex().upper(), message))
             nextAddress = getForwardingAddress(sock, message)
             correctSocket = chooseSocket(sockets, nextAddress)
+            print("Received at socket {}".format(sock.getsockname()[0]))
             print("Using socket with IP {} to send to {}\n".format(correctSocket.getsockname()[0], nextAddress[0]))
             correctSocket.sendto(message, nextAddress)
     except:
