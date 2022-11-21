@@ -26,7 +26,7 @@ while True:
     address = msgAddressPair[1]
     message = "Message received at endpoint! The user {} sent this: {}".format(receivedMessage[0:3].hex().upper(), receivedMessage)
     header = id + receivedMessage[0:3]
-    sendMessage = " Thank you user {}, message received at {}".format(receivedMessage[0:3], id)
+    sendMessage = " Thank you user {}, message received at {}".format(receivedMessage[0:3].hex().upper(), id.hex().upper())
     sendMessage = header + str.encode(sendMessage)
     sockets[0].sendto(sendMessage, address)
     print(message)

@@ -26,7 +26,7 @@ print("User {} is attempting to send a message".format(id.hex().upper()))
 # It then concatenates this with the message it wants to send
 # It then sends it to the gateway/forwarder in its network
 header = id + destinationId
-message = " User with id {} sent this!".format(id)
+message = " User with id {} sent this!".format(id.hex().upper())
 bytesMessage = str.encode(message)
 bytesMessage = header + bytesMessage
 sockets[0].sendto(bytesMessage, forwarderAddressPort)
