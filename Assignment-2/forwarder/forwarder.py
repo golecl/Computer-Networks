@@ -18,6 +18,7 @@ def chooseSocket(listOfSockets, nextIpAddress):
         if compareSubnet(socketsIP, nextIpAddress[0]):
             return sock
     return
+
 # Sends the forwarders Element ID and the final destination ID to the controller
 # Controller sends back the next IP address
 def getForwardingAddress(sock, bytesMessage):
@@ -63,3 +64,4 @@ for sock in sockets:
     except:
         print("Sorry, an error occurred in the forwarder {}. Please restart and try again.".format(id))
         continue
+    
