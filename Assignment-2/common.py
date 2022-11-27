@@ -8,9 +8,13 @@ import socket
 import sys
 import multiprocessing
 import time
+import ast
 
 # Maximum size of a UDP Packet
 bufferSize = 65507
+
+# Creates a manager for the tables (necessary for multiprocessing)
+manager = multiprocessing.Manager()
 
 # Given all of the arguments of an element, and the index of the first own IP address
 # in these arguments, this function initialises all the sockets necessary for that element

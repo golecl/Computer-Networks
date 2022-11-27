@@ -146,12 +146,12 @@ services:
 
 # The controller has IP addresses/sockets in every network as all elements need to communicate with it at least once
 # The arguments passed into it are as follows:
-# All of its own IPs for all the networks it has sockets in
+# Own Element ID, All of its own IPs for all the networks it has sockets in
   controller:
     build:
       dockerfile:
         controller/Dockerfile
-    command: ["192.168.17.11", "172.30.0.11", "129.144.50.11", "133.111.20.11", "167.120.87.11", "123.134.43.11"]
+    command: ["C0C0C0", "192.168.17.11", "172.30.0.11", "129.144.50.11", "133.111.20.11", "167.120.87.11", "123.134.43.11"]
     networks:
       home:
         ipv4_address: 192.168.17.11

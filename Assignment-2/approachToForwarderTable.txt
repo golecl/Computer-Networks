@@ -1,0 +1,69 @@
+2 OPTIONS:
+1. get copy of forwarding table at declaration, request update when path not found
+2. get copy of forwarding table when message received
+
+OPTION 1:
+Pros:
+    possibly reduces communication between forwarder and controller to 1 message in a forwarders lifetime
+    more efficient in the long run
+    seems possibly easier?
+    will have a non empty dict etc at the start
+Cons:
+    most likely will have to communicate with controller twice
+    is not 100% guaranteed that forwarder will ever actually have an unkown path, avoiding one requirement
+
+OPTIONS 2:
+Pros:
+    100% guaranteed that forwarder will communicate with the controller due to unknown path
+Cons:
+    less efficient
+    will communicate with the controller twice (most likely)
+
+WINNER:
+OPTION 1!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+Implementation:
+
+    Forwarder:
+
+        Multiprocessing Preparation:
+            1. Create an IP table (dict) with manager lock
+            2. Create a network graph (dict) as manager, no lock.... (becauseeeee the only time you modify it is when you have already locked ip table)
+
+        At declaration:
+            1. send declaration
+            2. receive back a message with the two dicts stringified
+            3. LOCK THE DICT 
+            4. enter a function which will de-strigify the dicts appropriately, seperate them by the {} characters as they both only have 1 set 
+            5. UNLOCK THE DICT
+
+        At message:
+            1. check for path (no need to lock or unlock)
+            2. if path found: skip to step 11
+            3. if path not found:
+            4. send request (as previously) to controller, receive back stringified 2 dicts
+            5. LOCK THE DICT
+            6. enter a function which will de-strigify the dicts appropriately, seperate them by the {} characters as they both only have 1 set
+            7. UNLOCK THE DICT
+            8. check for path
+            9. if still no path, print error and die 
+            10. if path found:
+            11. send the message to the first step of the path
+
+        Function for de-stringifying:
+            1. get full string
+            2. seperate into two strings
+            3. create temp dicts of both strings
+            4. replace the actual Manager dicts with these temp ones
+            5. return
+
+    Controller:
+        Multiprocessing Preparation:
+            1. same as previous
+
+        At declaration:
+            1. same as previous
+            2. send back a stringified version of both dicts, no header, no space between the two dicts
+        
+        At non-declaration message:
+            1. just send back a stringified version of both dicts, no header, no space between the two dicts

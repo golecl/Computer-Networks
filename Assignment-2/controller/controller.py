@@ -3,13 +3,13 @@
 from common import *
 
 # This initialises all of the controllers sockets
-sockets = initialiseSockets(sys.argv, 1)
+ownId = bytes.fromhex(sys.argv[1])
+sockets = initialiseSockets(sys.argv, 2)
 
 # This creates the forwarding table and the graph used for creating optimal paths
 # The forwarding table is a dictionary of arrays
 # Each key is an element ID and the value is an array of the IP addresses of the sockets
 # That that element is in control of
-manager = multiprocessing.Manager()
 forwardingTable = manager.dict()
 forwardingTableMutex = manager.Lock()
 # The graph is made up of nodes (element IDs) and edges (connections if the 2 nodes share a subnet)
@@ -27,38 +27,6 @@ def addEdge(networkGraph, node1, node2):
     currentEdges = networkGraph[node2]
     currentEdges.append(node1)
     networkGraph[node2] = currentEdges
-    
-# This finds the most optimal path between the given starting element ID (the id of the forwarder
-# that sent the request to the controller, not the original user origin ID) and returns the path
-# as an array of element IDs
-def findPath(networkGraph, start, end):
-    try:
-        explored = []
-        queue = [[start]]
-        while queue:
-            path = queue.pop(0)
-            node = path[-1]
-            if node not in explored:
-                neighbours = networkGraph[node]
-                for neighbour in neighbours:
-                    new_path = list(path)
-                    new_path.append(neighbour)
-                    queue.append(new_path)
-                    if neighbour == end:
-                        return new_path
-                explored.append(node)
-    except:
-        print("Sorry, but no connecting path exists between the origin and destination")
-        return [sock.getsockname()[0]]
-
-# This function finds the IP address that a forwarder should send to when given the
-# starting node and the destination node
-def findConnectingIp(start, end):
-    localForwardingTable = dict(forwardingTable)
-    for ip1 in localForwardingTable[start]:
-        for ip2 in localForwardingTable[end]:
-            if compareSubnet(ip1, ip2):
-                return ip2
         
 # This function adds both element IDs (keys) and the IP address value to the forwarding table
 # It also creates the appropriate node in the graph if the element ID was not already
@@ -85,19 +53,13 @@ def declarationHandler(forwardingTable, id, address, graph):
         for destIp in listOfIPs:
             if compareSubnet(ip, destIp) & (ip != destIp):
                 addEdge(graph, id, elementId)
-
-# This function, given the header, calls the functions findPath() and findConnectingIp()
-# and returns the next IP address that the forwarder should send the packet to       
-def findNextDestination(header, graph):
-    id = header[0:3]
-    destination = header[3:6]
-    path = findPath(graph, id, destination)
-    nextIp = findConnectingIp(path[0], path[1])
-    return nextIp
-    
-# This functions listens for messages, determines whether theyre declarations or requests for
-# the next ip address in the path. It then calls the appropriate functions and sends back a
-# response if one is needed.
+ 
+# This function listens for messages sent to the controller
+# If the message is a declaration from a non-forwarder (if it is 3 bytes long)
+# It will add it to the tables
+# If it is a declaration (if it is 4 bytes long) from a forwarder it will add it to the tables
+# And also will send back the tables
+# If it is any other message (more than 4 bytes long) it will simply send back the tables
 def listenAndRespond(sock, forwardingTable, forwardingTableMutex, graph):
     try:
         while True:
@@ -109,9 +71,15 @@ def listenAndRespond(sock, forwardingTable, forwardingTableMutex, graph):
                 declarationHandler(forwardingTable, message, address, graph)
                 forwardingTableMutex.release()
             else:
-                nextIp = findNextDestination(message, graph)
-                nextIpBytes = str.encode(nextIp)
-                sock.sendto(nextIpBytes, address)
+                forwardingTableMutex.acquire()
+                if len(message) == 4:
+                    declarationHandler(forwardingTable, message[:3], address, graph)
+                stringifiedIPTable = str(forwardingTable)
+                stringifiedNetworkGraph = str(graph)
+                forwardingTableMutex.release()
+                stringifiedDicts =  stringifiedIPTable + stringifiedNetworkGraph
+                bytesOfDicts = ownId + str.encode(stringifiedDicts)
+                sock.sendto(bytesOfDicts, address)
     except:
         print("Sorry, encountered an error in the controller, please try again")
                 
@@ -121,7 +89,7 @@ def listenAndRespond(sock, forwardingTable, forwardingTableMutex, graph):
 for sock in range(0, len(sockets) - 1):
     try:
         time.sleep(0.1)
-        process = multiprocessing.Process(target=listenAndRespond,args=[sockets[sock], forwardingTable, forwardingTableMutex, graph])
+        process = multiprocessing.Process(target=listenAndRespond, args=[sockets[sock], forwardingTable, forwardingTableMutex, graph])
         process.start()
     except:
         print("Sorry, error occurred in the controller, please restart and try again.")
