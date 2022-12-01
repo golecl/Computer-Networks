@@ -40,7 +40,7 @@ services:
     build:
       dockerfile:
         forwarder/Dockerfile
-    command: ["BBCCDD", "129.144.50.11", "172.30.0.11", "129.144.50.12", "172.30.0.254"]
+    command: ["CCCCDD", "129.144.50.11", "172.30.0.11", "129.144.50.12", "172.30.0.254"]
     networks:
       internet:
         ipv4_address: 129.144.50.12
